@@ -1,9 +1,6 @@
-(venv) (base) jackdavenport@macbook-pro SDF Circles % venv/
+venv/
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .DS_Store
-zsh: permission denied: venv/
-zsh: no such file or directory: __pycache__/
-zsh: no matches found: *.pyc
