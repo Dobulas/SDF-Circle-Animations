@@ -23,3 +23,17 @@ You can switch between movement modes while the window is active:
 
 * Press **C** for the default circular motion.
 * Press **R** for random wandering.
+
+## Testing
+
+Basic tests cover helper functions used by the animation code:
+
+```bash
+pytest
+```
+
+When running the GUI as part of tests or CI, set `QT_QPA_PLATFORM=offscreen`:
+
+```bash
+QT_QPA_PLATFORM=offscreen python run.py
+```

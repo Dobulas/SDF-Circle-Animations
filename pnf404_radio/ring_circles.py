@@ -67,7 +67,7 @@ def run() -> int:
     noise_intensity = 5
     sprite_count = 15
 
-    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
     win = pg.GraphicsLayoutWidget(show=True, title="PNF 404 Radio - Ring Circles")
     win.resize(800, 800)
     win.setBackground("w")
@@ -145,7 +145,7 @@ def run() -> int:
     def set_mode(new_mode: MovementMode) -> None:
         """Switch the sprite movement mode with a smooth transition."""
 
-        nonlocal movement_mode, velocities, angles
+        nonlocal movement_mode, velocities
         movement_mode = new_mode
         if movement_mode is MovementMode.RANDOM:
             velocities = np.random.uniform(-1.5, 1.5, size=(sprite_count, 2))
