@@ -1,0 +1,21 @@
+# PNF 404 Radio Animations
+
+This project contains experimental visual animations for **PNF 404 Radio: The Walkman Has Landed**. Animations are implemented with [PyQtGraph](https://www.pyqtgraph.org/) and can be chained together to create visuals for audio mixes.
+
+## Requirements
+
+Install dependencies with pip:
+
+```bash
+pip install -r requirements.txt
+```
+
+## Usage
+
+Run the ring circle animation:
+
+```bash
+python run.py
+```
+
+A window will open displaying rotating circles with layered noise. This serves as a starting point for creating additional animations.
