@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from enum import Enum, auto
 from itertools import cycle
 
 import matplotlib.pyplot as plt
@@ -10,51 +9,8 @@ import numpy as np
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui, QtWidgets
 
-
-def _get_random_center(width: int, height: int, margin: int) -> tuple[int, int]:
-    """Return a random (x, y) point within the given margins."""
-    center_x = np.random.randint(margin, width - margin)
-    center_y = np.random.randint(margin, height - margin)
-    return center_x, center_y
-
-
-def _generate_simple_noise(
-    width: int, height: int, scale: float = 0.05, intensity: float = 10
-) -> np.ndarray:
-    """Generate sine-cosine-based noise."""
-    y, x = np.meshgrid(np.arange(height), np.arange(width))
-    noise = np.sin(x * scale) + np.cos(y * scale)
-    return noise * intensity
-
-
-def _create_sprite(
-    center_x: int,
-    center_y: int,
-    radii: list[int],
-    *,
-    width: int,
-    height: int,
-    noise_scale: float,
-    noise_intensity: float,
-) -> np.ndarray:
-    """Create a layered signed distance field array with noise."""
-    y, x = np.meshgrid(np.arange(height), np.arange(width))
-    combined_sdf = np.zeros((height, width))
-    for radius in radii:
-        sdf = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2) - radius
-        noise = _generate_simple_noise(
-            width, height, scale=noise_scale, intensity=noise_intensity
-        )
-        sdf_with_noise = sdf + noise
-        combined_sdf = np.minimum(combined_sdf, sdf_with_noise)
-    return combined_sdf
-
-
-class MovementMode(Enum):
-    """Available sprite movement modes."""
-
-    CIRCLE = auto()
-    RANDOM = auto()
+from .movement import MovementController, MovementMode
+from .utils import create_sprite, get_random_center
 
 
 def run() -> int:
@@ -101,8 +57,8 @@ def run() -> int:
 
     sprites = []
     for _ in range(sprite_count):
-        cx, cy = _get_random_center(width, height, margin)
-        layered_sdf = _create_sprite(
+        cx, cy = get_random_center(width, height, margin)
+        layered_sdf = create_sprite(
             cx,
             cy,
             radii,
@@ -129,31 +85,23 @@ def run() -> int:
         sprite_items.append(item)
 
     ring_radius = 300
-    angles = np.linspace(0, 2 * np.pi, sprite_count, endpoint=False)
-    positions = np.zeros((sprite_count, 2))
-    velocities = np.zeros((sprite_count, 2))
+    boundary = width / 2 - 50
+    controller = MovementController(sprite_count, ring_radius, boundary)
     movement_mode = MovementMode.CIRCLE
 
-    boundary = width / 2 - 50
     for i, item in enumerate(sprite_items):
-        theta = angles[i]
-        x = ring_radius * np.cos(theta)
-        y = ring_radius * np.sin(theta)
-        positions[i] = x, y
+        x, y = controller.positions[i]
         item.setPos(x - width / 2, y - height / 2)
 
     def set_mode(new_mode: MovementMode) -> None:
-        """Switch the sprite movement mode with a smooth transition."""
+        """Switch the sprite movement mode."""
 
-        nonlocal movement_mode, velocities, angles
+        nonlocal movement_mode
         movement_mode = new_mode
-        if movement_mode is MovementMode.RANDOM:
-            velocities = np.random.uniform(-1.5, 1.5, size=(sprite_count, 2))
+        if movement_mode in {MovementMode.RANDOM, MovementMode.DRIFT}:
+            controller.velocities = np.random.uniform(-1.5, 1.5, size=(sprite_count, 2))
         else:
-            for i in range(sprite_count):
-                x, y = positions[i]
-                angles[i] = np.arctan2(y, x)
-            velocities[:] = 0
+            controller.velocities[:] = 0
 
     circle_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("C"), win)
     circle_shortcut.activated.connect(lambda: set_mode(MovementMode.CIRCLE))
@@ -161,44 +109,51 @@ def run() -> int:
     random_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("R"), win)
     random_shortcut.activated.connect(lambda: set_mode(MovementMode.RANDOM))
 
+    elliptical_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("E"), win)
+    elliptical_shortcut.activated.connect(lambda: set_mode(MovementMode.ELLIPTICAL))
+
+    spiral_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("S"), win)
+    spiral_shortcut.activated.connect(lambda: set_mode(MovementMode.SPIRAL))
+
+    lissajous_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("L"), win)
+    lissajous_shortcut.activated.connect(lambda: set_mode(MovementMode.LISSAJOUS))
+
+    wobble_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("W"), win)
+    wobble_shortcut.activated.connect(lambda: set_mode(MovementMode.WOBBLE))
+
+    avoidance_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("A"), win)
+    avoidance_shortcut.activated.connect(lambda: set_mode(MovementMode.AVOIDANCE))
+
+    wave_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("V"), win)
+    wave_shortcut.activated.connect(lambda: set_mode(MovementMode.WAVE))
+
+    helix_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("H"), win)
+    helix_shortcut.activated.connect(lambda: set_mode(MovementMode.HELIX))
+
+    figure_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("F"), win)
+    figure_shortcut.activated.connect(lambda: set_mode(MovementMode.FIGURE_EIGHT))
+
+    cascade_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("O"), win)
+    cascade_shortcut.activated.connect(lambda: set_mode(MovementMode.CASCADE))
+
+    drift_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("D"), win)
+    drift_shortcut.activated.connect(lambda: set_mode(MovementMode.DRIFT))
+
     def update() -> None:
         """Advance the animation by one frame."""
 
-        nonlocal angles, positions, velocities
-
-        rotation_speed = 0.01
-        if movement_mode is MovementMode.CIRCLE:
-            angles += rotation_speed
-            for i, item in enumerate(sprite_items):
-                theta = angles[i]
-                x, y = positions[i]
-                r = np.hypot(x, y)
-                r += (ring_radius - r) * 0.1
-                x = r * np.cos(theta)
-                y = r * np.sin(theta)
-                positions[i] = x, y
-                item.setPos(x - width / 2, y - height / 2)
-        else:
-            velocities += np.random.uniform(-0.2, 0.2, size=(sprite_count, 2))
-            velocities *= 0.98
-            np.clip(velocities, -3, 3, out=velocities)
-            positions += velocities
-            for i, item in enumerate(sprite_items):
-                x, y = positions[i]
-                if abs(x) > boundary:
-                    velocities[i, 0] *= -1
-                    x = np.sign(x) * boundary
-                if abs(y) > boundary:
-                    velocities[i, 1] *= -1
-                    y = np.sign(y) * boundary
-                positions[i] = x, y
-                item.setPos(x - width / 2, y - height / 2)
+        extras = controller.update(movement_mode)
+        for i, item in enumerate(sprite_items):
+            x, y = controller.positions[i]
+            item.setPos(x - width / 2, y - height / 2)
+            if "scale" in extras:
+                item.setScale(extras["scale"][i])
 
     timer = pg.QtCore.QTimer()
     timer.timeout.connect(update)
     timer.start(16)  # ~60 FPS
 
-    return QtWidgets.QApplication.instance().exec_()
+    return app.exec_()
 
 
 if __name__ == "__main__":
