@@ -143,12 +143,17 @@ def run() -> int:
         item.setPos(x - width / 2, y - height / 2)
 
     def set_mode(new_mode: MovementMode) -> None:
-        """Switch the sprite movement mode."""
+        """Switch the sprite movement mode with a smooth transition."""
 
-        nonlocal movement_mode, velocities
+        nonlocal movement_mode, velocities, angles
         movement_mode = new_mode
         if movement_mode is MovementMode.RANDOM:
-            velocities = np.random.uniform(-3, 3, size=(sprite_count, 2))
+            velocities = np.random.uniform(-1.5, 1.5, size=(sprite_count, 2))
+        else:
+            for i in range(sprite_count):
+                x, y = positions[i]
+                angles[i] = np.arctan2(y, x)
+            velocities[:] = 0
 
     circle_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("C"), win)
     circle_shortcut.activated.connect(lambda: set_mode(MovementMode.CIRCLE))
@@ -166,11 +171,17 @@ def run() -> int:
             angles += rotation_speed
             for i, item in enumerate(sprite_items):
                 theta = angles[i]
-                x = ring_radius * np.cos(theta)
-                y = ring_radius * np.sin(theta)
+                x, y = positions[i]
+                r = np.hypot(x, y)
+                r += (ring_radius - r) * 0.1
+                x = r * np.cos(theta)
+                y = r * np.sin(theta)
                 positions[i] = x, y
                 item.setPos(x - width / 2, y - height / 2)
         else:
+            velocities += np.random.uniform(-0.2, 0.2, size=(sprite_count, 2))
+            velocities *= 0.98
+            np.clip(velocities, -3, 3, out=velocities)
             positions += velocities
             for i, item in enumerate(sprite_items):
                 x, y = positions[i]
