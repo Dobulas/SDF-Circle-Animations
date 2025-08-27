@@ -31,7 +31,7 @@ def run() -> int:
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
     win = pg.GraphicsLayoutWidget(show=True, title="PNF 404 Radio - Ring Circles")
     win.resize(800, 800)
-    win.setBackground("#0caceb")
+    win.setBackground("#D6DDBE")
 
     plot = win.addPlot()
     plot.setAspectLocked(True)
