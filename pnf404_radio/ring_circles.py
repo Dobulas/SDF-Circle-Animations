@@ -93,54 +93,123 @@ def run() -> int:
         x, y = controller.positions[i]
         item.setPos(x - width / 2, y - height / 2)
 
-    def set_mode(new_mode: MovementMode) -> None:
-        """Switch the sprite movement mode."""
+    transition_active = False
+    transition_frame = 0
+    transition_frames = 0
+    start_positions = np.zeros((sprite_count, 2))
+    start_scales = np.ones(sprite_count)
+    target_positions = np.zeros((sprite_count, 2))
+    target_scales = np.ones(sprite_count)
+    transition_state: dict[str, np.ndarray | float] = {}
+    pending_mode = movement_mode
 
-        nonlocal movement_mode
-        movement_mode = new_mode
-        if movement_mode in {MovementMode.RANDOM, MovementMode.DRIFT}:
-            controller.velocities = np.random.uniform(-1.5, 1.5, size=(sprite_count, 2))
-        else:
-            controller.velocities[:] = 0
+    def transition_to_mode(new_mode: MovementMode, duration: float) -> None:
+        """Interpolate sprites toward ``new_mode`` over ``duration`` frames."""
+
+        nonlocal transition_active, transition_frame, transition_frames
+        nonlocal pending_mode, transition_state
+
+        for i, item in enumerate(sprite_items):
+            pos = item.pos()
+            start_positions[i] = (
+                pos.x() + width / 2,
+                pos.y() + height / 2,
+            )
+            start_scales[i] = item.scale()
+
+        state = controller.get_transition_state(new_mode)
+        target_positions[:] = state["positions"]
+        target_scales[:] = state.get("scale", np.ones(sprite_count))
+        transition_state = state
+        pending_mode = new_mode
+        transition_frames = max(1, int(duration))
+        transition_frame = 0
+        transition_active = True
+
+    transition_duration = 60
 
     circle_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("C"), win)
-    circle_shortcut.activated.connect(lambda: set_mode(MovementMode.CIRCLE))
+    circle_shortcut.activated.connect(
+        lambda: transition_to_mode(MovementMode.CIRCLE, transition_duration)
+    )
 
     random_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("R"), win)
-    random_shortcut.activated.connect(lambda: set_mode(MovementMode.RANDOM))
+    random_shortcut.activated.connect(
+        lambda: transition_to_mode(MovementMode.RANDOM, transition_duration)
+    )
 
     elliptical_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("E"), win)
-    elliptical_shortcut.activated.connect(lambda: set_mode(MovementMode.ELLIPTICAL))
+    elliptical_shortcut.activated.connect(
+        lambda: transition_to_mode(MovementMode.ELLIPTICAL, transition_duration)
+    )
 
     spiral_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("S"), win)
-    spiral_shortcut.activated.connect(lambda: set_mode(MovementMode.SPIRAL))
+    spiral_shortcut.activated.connect(
+        lambda: transition_to_mode(MovementMode.SPIRAL, transition_duration)
+    )
 
     lissajous_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("L"), win)
-    lissajous_shortcut.activated.connect(lambda: set_mode(MovementMode.LISSAJOUS))
+    lissajous_shortcut.activated.connect(
+        lambda: transition_to_mode(MovementMode.LISSAJOUS, transition_duration)
+    )
 
     wobble_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("W"), win)
-    wobble_shortcut.activated.connect(lambda: set_mode(MovementMode.WOBBLE))
+    wobble_shortcut.activated.connect(
+        lambda: transition_to_mode(MovementMode.WOBBLE, transition_duration)
+    )
 
     avoidance_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("A"), win)
-    avoidance_shortcut.activated.connect(lambda: set_mode(MovementMode.AVOIDANCE))
+    avoidance_shortcut.activated.connect(
+        lambda: transition_to_mode(MovementMode.AVOIDANCE, transition_duration)
+    )
 
     wave_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("V"), win)
-    wave_shortcut.activated.connect(lambda: set_mode(MovementMode.WAVE))
+    wave_shortcut.activated.connect(
+        lambda: transition_to_mode(MovementMode.WAVE, transition_duration)
+    )
 
     helix_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("H"), win)
-    helix_shortcut.activated.connect(lambda: set_mode(MovementMode.HELIX))
+    helix_shortcut.activated.connect(
+        lambda: transition_to_mode(MovementMode.HELIX, transition_duration)
+    )
 
     figure_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("F"), win)
-    figure_shortcut.activated.connect(lambda: set_mode(MovementMode.FIGURE_EIGHT))
+    figure_shortcut.activated.connect(
+        lambda: transition_to_mode(MovementMode.FIGURE_EIGHT, transition_duration)
+    )
 
     cascade_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("O"), win)
-    cascade_shortcut.activated.connect(lambda: set_mode(MovementMode.CASCADE))
+    cascade_shortcut.activated.connect(
+        lambda: transition_to_mode(MovementMode.CASCADE, transition_duration)
+    )
 
     drift_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("D"), win)
-    drift_shortcut.activated.connect(lambda: set_mode(MovementMode.DRIFT))
+    drift_shortcut.activated.connect(
+        lambda: transition_to_mode(MovementMode.DRIFT, transition_duration)
+    )
 
     def update() -> None:
         """Advance the animation by one frame."""
+
+        nonlocal transition_active, transition_frame, movement_mode
+
+        if transition_active:
+            transition_frame += 1
+            alpha = transition_frame / transition_frames
+            interp_pos = (1 - alpha) * start_positions + alpha * target_positions
+            interp_scale = (1 - alpha) * start_scales + alpha * target_scales
+            for i, item in enumerate(sprite_items):
+                x, y = interp_pos[i]
+                item.setPos(x - width / 2, y - height / 2)
+                item.setScale(interp_scale[i])
+            if transition_frame >= transition_frames:
+                transition_active = False
+                controller.positions = transition_state["positions"]
+                controller.velocities = transition_state["velocities"]
+                controller.angles = transition_state["angles"]
+                controller.t = float(transition_state["t"])
+                movement_mode = pending_mode
+            return
 
         extras = controller.update(movement_mode)
         for i, item in enumerate(sprite_items):
