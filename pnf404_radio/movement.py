@@ -67,6 +67,14 @@ class MovementController:
             1 + np.arange(self.sprite_count) / self.sprite_count
         )
 
+    def base_scale_for(self, mode: MovementMode) -> np.ndarray:
+        """Return mode-specific starting scales."""
+
+        if mode is MovementMode.HELIX:
+            depth = 0.5 + 0.5 * np.sin(self.angles + self.t)
+            return 0.5 + depth
+        return np.ones(self.sprite_count)
+
     def get_transition_state(self, mode: MovementMode) -> dict[str, np.ndarray | float]:
         """Return state after one step of ``mode`` without modifying the controller."""
 

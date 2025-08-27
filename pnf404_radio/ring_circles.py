@@ -119,7 +119,7 @@ def run() -> int:
 
         state = controller.get_transition_state(new_mode)
         target_positions[:] = state["positions"]
-        target_scales[:] = state.get("scale", np.ones(sprite_count))
+        target_scales[:] = state.get("scale", controller.base_scale_for(new_mode))
         transition_state = state
         pending_mode = new_mode
         transition_frames = max(1, int(duration))
@@ -193,6 +193,8 @@ def run() -> int:
 
         nonlocal transition_active, transition_frame, movement_mode
 
+        default_scale = 1.0
+
         if transition_active:
             transition_frame += 1
             alpha = transition_frame / transition_frames
@@ -209,14 +211,20 @@ def run() -> int:
                 controller.angles = transition_state["angles"]
                 controller.t = float(transition_state["t"])
                 movement_mode = pending_mode
+                if "scale" not in transition_state:
+                    for item in sprite_items:
+                        item.setScale(default_scale)
             return
 
         extras = controller.update(movement_mode)
+        has_scale = "scale" in extras
         for i, item in enumerate(sprite_items):
             x, y = controller.positions[i]
             item.setPos(x - width / 2, y - height / 2)
-            if "scale" in extras:
+            if has_scale:
                 item.setScale(extras["scale"][i])
+            else:
+                item.setScale(default_scale)
 
     timer = pg.QtCore.QTimer()
     timer.timeout.connect(update)
