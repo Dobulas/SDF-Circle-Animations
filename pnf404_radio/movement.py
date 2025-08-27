@@ -31,12 +31,15 @@ class MovementController:
         Half-width of the bounding square for drift behaviour.
     start_delay:
         Seconds to hold the initial arrangement before motion begins.
+    angular_speed:
+        Base angular speed in radians per second for circular motion.
     """
 
     sprite_count: int
     ring_radius: float
     boundary: float
     start_delay: float = 0.0
+    angular_speed: float = 0.6
     angles: np.ndarray = field(init=False)
     positions: np.ndarray = field(init=False)
     velocities: np.ndarray = field(init=False)
@@ -86,47 +89,49 @@ class MovementController:
 
         return positions, velocities
 
-    def update(self, mode: MovementMode) -> Dict[str, np.ndarray]:
-        """Advance the animation by one frame."""
+    def update(self, mode: MovementMode, dt: float) -> Dict[str, np.ndarray]:
+        """Advance the animation by ``dt`` seconds."""
 
-        dt = 0.01
         self.t += dt
 
         if mode is MovementMode.CIRCLE:
-            return self._update_circle()
+            return self._update_circle(dt)
         if mode is MovementMode.FIGURE_EIGHT:
-            return self._update_figure_eight()
+            return self._update_figure_eight(dt)
         if mode is MovementMode.DRIFT:
-            return self._update_drift()
+            return self._update_drift(dt)
         return {}
 
-    def _update_circle(self) -> Dict[str, np.ndarray]:
+    def _update_circle(self, dt: float) -> Dict[str, np.ndarray]:
         """Advance animation using circular motion."""
 
         if self.t >= self.start_delay:
-            self.angles += 0.01
+            self.angles += self.angular_speed * dt
         r = self.ring_radius
         self.positions[:, 0] = r * np.cos(self.angles)
         self.positions[:, 1] = r * np.sin(self.angles)
         return {}
 
-    def _update_figure_eight(self) -> Dict[str, np.ndarray]:
+    def _update_figure_eight(self, dt: float) -> Dict[str, np.ndarray]:
         """Advance animation using figure-eight motion."""
 
         if self.t >= self.start_delay:
-            self.angles += 0.01
+            self.angles += self.angular_speed * dt
         r = self.ring_radius
         self.positions[:, 0] = r * np.sin(self.angles)
         self.positions[:, 1] = r * np.sin(2 * self.angles)
         return {}
 
-    def _update_drift(self) -> Dict[str, np.ndarray]:
+    def _update_drift(self, dt: float) -> Dict[str, np.ndarray]:
         """Advance animation using slow drifting motion."""
 
-        self.velocities += np.random.uniform(-0.05, 0.05, size=(self.sprite_count, 2))
-        self.velocities *= 0.99
+        frame_scale = dt * 60.0
+        self.velocities += (
+            np.random.uniform(-0.05, 0.05, size=(self.sprite_count, 2)) * frame_scale
+        )
+        self.velocities *= 0.99**frame_scale
         np.clip(self.velocities, -2, 2, out=self.velocities)
-        self.positions += self.velocities
+        self.positions += self.velocities * frame_scale
         self._apply_boundary()
         return {}
 
