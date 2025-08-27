@@ -19,11 +19,24 @@ class MovementMode(Enum):
 
 @dataclass
 class MovementController:
-    """Update sprite positions based on the selected movement mode."""
+    """Update sprite positions based on the selected movement mode.
+
+    Parameters
+    ----------
+    sprite_count:
+        Number of sprites to animate.
+    ring_radius:
+        Radius of the circular path.
+    boundary:
+        Half-width of the bounding square for drift behaviour.
+    start_delay:
+        Seconds to hold the initial arrangement before motion begins.
+    """
 
     sprite_count: int
     ring_radius: float
     boundary: float
+    start_delay: float = 0.0
     angles: np.ndarray = field(init=False)
     positions: np.ndarray = field(init=False)
     velocities: np.ndarray = field(init=False)
@@ -95,7 +108,8 @@ class MovementController:
     def _update_circle(self) -> Dict[str, np.ndarray]:
         """Advance animation using circular motion."""
 
-        self.angles += 0.01
+        if self.t >= self.start_delay:
+            self.angles += 0.01
         r = self.ring_radius
         self.positions[:, 0] = r * np.cos(self.angles)
         self.positions[:, 1] = r * np.sin(self.angles)
