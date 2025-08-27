@@ -75,6 +75,82 @@ class MovementController:
             return 0.5 + depth
         return np.ones(self.sprite_count)
 
+    def get_start_state(self, mode: MovementMode) -> tuple[np.ndarray, np.ndarray]:
+        """Return starting positions and velocities for ``mode``.
+
+        The controller itself is not modified. Returned arrays may be used to
+        smoothly transition into ``mode``.
+        """
+
+        positions = np.zeros_like(self.positions)
+        velocities = np.zeros_like(self.positions)
+
+        if mode is MovementMode.CIRCLE:
+            r = self.ring_radius
+            positions[:, 0] = r * np.cos(self.angles)
+            positions[:, 1] = r * np.sin(self.angles)
+        elif mode is MovementMode.RANDOM:
+            positions[:] = self.positions
+            velocities = np.random.uniform(-1.5, 1.5, size=(self.sprite_count, 2))
+        elif mode is MovementMode.ELLIPTICAL:
+            orientation = self.t * 0.05
+            cos_o, sin_o = np.cos(orientation), np.sin(orientation)
+            a = self.ellipse_axes[:, 0]
+            b = self.ellipse_axes[:, 1]
+            x = a * np.cos(self.angles)
+            y = b * np.sin(self.angles)
+            positions[:, 0] = cos_o * x - sin_o * y
+            positions[:, 1] = sin_o * x + cos_o * y
+        elif mode is MovementMode.SPIRAL:
+            amplitude = self.ring_radius * 0.3
+            r = self.ring_radius + amplitude * np.sin(self.t + self.phases)
+            positions[:, 0] = r * np.cos(self.angles)
+            positions[:, 1] = r * np.sin(self.angles)
+        elif mode is MovementMode.LISSAJOUS:
+            freq = self.lissajous_freqs
+            positions[:, 0] = self.ring_radius * np.sin(
+                freq[:, 0] * self.t + self.phases
+            )
+            positions[:, 1] = self.ring_radius * np.sin(
+                freq[:, 1] * self.t + 2 * self.phases
+            )
+        elif mode is MovementMode.WOBBLE:
+            amplitude = self.ring_radius * 0.1
+            r = self.ring_radius + amplitude * np.sin(self.t * 2 + self.phases)
+            positions[:, 0] = r * np.cos(self.angles)
+            positions[:, 1] = r * np.sin(self.angles)
+        elif mode is MovementMode.AVOIDANCE:
+            positions[:] = self.positions
+        elif mode is MovementMode.WAVE:
+            offset = 0.5 * np.sin(self.t + np.arange(self.sprite_count))
+            positions[:, 0] = self.ring_radius * np.cos(
+                self.angles + offset + self.phases
+            )
+            positions[:, 1] = self.ring_radius * np.sin(
+                self.angles + offset + self.phases
+            )
+        elif mode is MovementMode.HELIX:
+            positions[:, 0] = self.ring_radius * np.cos(self.angles)
+            positions[:, 1] = self.ring_radius * np.sin(self.angles)
+        elif mode is MovementMode.FIGURE_EIGHT:
+            a = self.ring_radius * 0.6
+            b = self.ring_radius * 0.4
+            positions[:, 0] = a * np.sin(self.angles)
+            positions[:, 1] = b * np.sin(2 * self.angles)
+        elif mode is MovementMode.CASCADE:
+            for i in range(self.sprite_count):
+                r = self.cascade_radii[i]
+                angle = self.angles[i] * (self.ring_radius / r)
+                positions[i, 0] = r * np.cos(angle)
+                positions[i, 1] = r * np.sin(angle)
+        elif mode is MovementMode.DRIFT:
+            positions[:] = self.positions
+            velocities = np.random.uniform(-0.05, 0.05, size=(self.sprite_count, 2))
+        else:
+            positions[:] = self.positions
+
+        return positions, velocities
+
     def get_transition_state(self, mode: MovementMode) -> dict[str, np.ndarray | float]:
         """Return state after one step of ``mode`` without modifying the controller."""
 

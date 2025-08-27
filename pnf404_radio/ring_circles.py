@@ -100,14 +100,14 @@ def run() -> int:
     start_scales = np.ones(sprite_count)
     target_positions = np.zeros((sprite_count, 2))
     target_scales = np.ones(sprite_count)
-    transition_state: dict[str, np.ndarray | float] = {}
+    target_velocities = np.zeros((sprite_count, 2))
     pending_mode = movement_mode
 
     def transition_to_mode(new_mode: MovementMode, duration: float) -> None:
         """Interpolate sprites toward ``new_mode`` over ``duration`` frames."""
 
         nonlocal transition_active, transition_frame, transition_frames
-        nonlocal pending_mode, transition_state
+        nonlocal pending_mode
 
         for i, item in enumerate(sprite_items):
             pos = item.pos()
@@ -117,10 +117,10 @@ def run() -> int:
             )
             start_scales[i] = item.scale()
 
-        state = controller.get_transition_state(new_mode)
-        target_positions[:] = state["positions"]
-        target_scales[:] = state.get("scale", controller.base_scale_for(new_mode))
-        transition_state = state
+        positions, velocities = controller.get_start_state(new_mode)
+        target_positions[:] = positions
+        target_scales[:] = controller.base_scale_for(new_mode)
+        target_velocities[:] = velocities
         pending_mode = new_mode
         transition_frames = max(1, int(duration))
         transition_frame = 0
@@ -206,14 +206,11 @@ def run() -> int:
                 item.setScale(interp_scale[i])
             if transition_frame >= transition_frames:
                 transition_active = False
-                controller.positions = transition_state["positions"]
-                controller.velocities = transition_state["velocities"]
-                controller.angles = transition_state["angles"]
-                controller.t = float(transition_state["t"])
+                controller.positions = target_positions.copy()
+                controller.velocities = target_velocities.copy()
                 movement_mode = pending_mode
-                if "scale" not in transition_state:
-                    for item in sprite_items:
-                        item.setScale(default_scale)
+                for i, item in enumerate(sprite_items):
+                    item.setScale(target_scales[i])
             return
 
         extras = controller.update(movement_mode)
