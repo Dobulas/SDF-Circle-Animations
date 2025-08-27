@@ -126,21 +126,11 @@ def run() -> int:
         transition_frame = 0
         transition_active = True
 
-    transition_duration = 60
+    transition_duration = 90
 
     circle_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("C"), win)
     circle_shortcut.activated.connect(
         lambda: transition_to_mode(MovementMode.CIRCLE, transition_duration)
-    )
-
-    random_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("R"), win)
-    random_shortcut.activated.connect(
-        lambda: transition_to_mode(MovementMode.RANDOM, transition_duration)
-    )
-
-    elliptical_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("E"), win)
-    elliptical_shortcut.activated.connect(
-        lambda: transition_to_mode(MovementMode.ELLIPTICAL, transition_duration)
     )
 
     spiral_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("S"), win)
@@ -148,42 +138,7 @@ def run() -> int:
         lambda: transition_to_mode(MovementMode.SPIRAL, transition_duration)
     )
 
-    lissajous_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("L"), win)
-    lissajous_shortcut.activated.connect(
-        lambda: transition_to_mode(MovementMode.LISSAJOUS, transition_duration)
-    )
-
-    wobble_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("W"), win)
-    wobble_shortcut.activated.connect(
-        lambda: transition_to_mode(MovementMode.WOBBLE, transition_duration)
-    )
-
-    avoidance_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("A"), win)
-    avoidance_shortcut.activated.connect(
-        lambda: transition_to_mode(MovementMode.AVOIDANCE, transition_duration)
-    )
-
-    wave_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("V"), win)
-    wave_shortcut.activated.connect(
-        lambda: transition_to_mode(MovementMode.WAVE, transition_duration)
-    )
-
-    helix_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("H"), win)
-    helix_shortcut.activated.connect(
-        lambda: transition_to_mode(MovementMode.HELIX, transition_duration)
-    )
-
-    figure_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("F"), win)
-    figure_shortcut.activated.connect(
-        lambda: transition_to_mode(MovementMode.FIGURE_EIGHT, transition_duration)
-    )
-
-    cascade_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("O"), win)
-    cascade_shortcut.activated.connect(
-        lambda: transition_to_mode(MovementMode.CASCADE, transition_duration)
-    )
-
-    drift_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("D"), win)
+    drift_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("R"), win)
     drift_shortcut.activated.connect(
         lambda: transition_to_mode(MovementMode.DRIFT, transition_duration)
     )
@@ -198,6 +153,7 @@ def run() -> int:
         if transition_active:
             transition_frame += 1
             alpha = transition_frame / transition_frames
+            alpha = 0.5 - 0.5 * np.cos(np.pi * alpha)
             interp_pos = (1 - alpha) * start_positions + alpha * target_positions
             interp_scale = (1 - alpha) * start_scales + alpha * target_scales
             for i, item in enumerate(sprite_items):
