@@ -13,7 +13,7 @@ class MovementMode(Enum):
     """Available sprite movement modes."""
 
     CIRCLE = auto()
-    SPIRAL = auto()
+    FIGURE_EIGHT = auto()
     DRIFT = auto()
 
 
@@ -40,8 +40,6 @@ class MovementController:
     angles: np.ndarray = field(init=False)
     positions: np.ndarray = field(init=False)
     velocities: np.ndarray = field(init=False)
-    spiral_offsets: np.ndarray = field(init=False)
-    spiral_base: float = field(init=False, default=0.0)
     t: float = field(default=0.0, init=False)
 
     def __post_init__(self) -> None:
@@ -56,9 +54,6 @@ class MovementController:
             axis=1,
         )
         self.velocities = np.zeros_like(self.positions)
-        spacing = self.ring_radius / self.sprite_count
-        self.spiral_offsets = np.arange(self.sprite_count) * spacing
-        self.spiral_base = self.ring_radius * 0.2
 
     def base_scale_for(self, mode: MovementMode) -> np.ndarray:
         """Return mode-specific starting scales."""
@@ -79,10 +74,10 @@ class MovementController:
             r = self.ring_radius
             positions[:, 0] = r * np.cos(self.angles)
             positions[:, 1] = r * np.sin(self.angles)
-        elif mode is MovementMode.SPIRAL:
-            r = (self.spiral_base + self.spiral_offsets) % self.boundary
-            positions[:, 0] = r * np.cos(self.angles)
-            positions[:, 1] = r * np.sin(self.angles)
+        elif mode is MovementMode.FIGURE_EIGHT:
+            r = self.ring_radius
+            positions[:, 0] = r * np.sin(self.angles)
+            positions[:, 1] = r * np.sin(2 * self.angles)
         elif mode is MovementMode.DRIFT:
             positions[:] = self.positions
             velocities = np.random.uniform(-0.05, 0.05, size=(self.sprite_count, 2))
@@ -99,8 +94,8 @@ class MovementController:
 
         if mode is MovementMode.CIRCLE:
             return self._update_circle()
-        if mode is MovementMode.SPIRAL:
-            return self._update_spiral()
+        if mode is MovementMode.FIGURE_EIGHT:
+            return self._update_figure_eight()
         if mode is MovementMode.DRIFT:
             return self._update_drift()
         return {}
@@ -115,14 +110,14 @@ class MovementController:
         self.positions[:, 1] = r * np.sin(self.angles)
         return {}
 
-    def _update_spiral(self) -> Dict[str, np.ndarray]:
-        """Advance animation using spiral motion."""
+    def _update_figure_eight(self) -> Dict[str, np.ndarray]:
+        """Advance animation using figure-eight motion."""
 
-        self.angles += 0.02
-        self.spiral_base += 0.5
-        r = (self.spiral_base + self.spiral_offsets) % self.boundary
-        self.positions[:, 0] = r * np.cos(self.angles)
-        self.positions[:, 1] = r * np.sin(self.angles)
+        if self.t >= self.start_delay:
+            self.angles += 0.01
+        r = self.ring_radius
+        self.positions[:, 0] = r * np.sin(self.angles)
+        self.positions[:, 1] = r * np.sin(2 * self.angles)
         return {}
 
     def _update_drift(self) -> Dict[str, np.ndarray]:

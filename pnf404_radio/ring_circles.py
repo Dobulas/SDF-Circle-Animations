@@ -136,9 +136,9 @@ def run() -> int:
         lambda: transition_to_mode(MovementMode.CIRCLE, transition_duration)
     )
 
-    spiral_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("S"), win)
-    spiral_shortcut.activated.connect(
-        lambda: transition_to_mode(MovementMode.SPIRAL, transition_duration)
+    figure_eight_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("F"), win)
+    figure_eight_shortcut.activated.connect(
+        lambda: transition_to_mode(MovementMode.FIGURE_EIGHT, transition_duration)
     )
 
     drift_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("R"), win)
