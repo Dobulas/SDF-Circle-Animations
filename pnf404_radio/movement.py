@@ -123,14 +123,9 @@ class MovementController:
         return {}
 
     def _update_drift(self, dt: float) -> Dict[str, np.ndarray]:
-        """Advance animation using slow drifting motion."""
+        """Advance animation using constant drift motion."""
 
         frame_scale = dt * 60.0
-        self.velocities += (
-            np.random.uniform(-0.05, 0.05, size=(self.sprite_count, 2)) * frame_scale
-        )
-        self.velocities *= 0.99**frame_scale
-        np.clip(self.velocities, -2, 2, out=self.velocities)
         self.positions += self.velocities * frame_scale
         self._apply_boundary()
         return {}
