@@ -22,5 +22,5 @@ A window will open displaying rotating circles with layered noise. This serves a
 You can switch between movement modes while the window is active:
 
 * **C** - circular motion
-* **S** - expanding spiral paths
+* **F** - figure-eight paths
 * **R** - slow drifting within the boundary
