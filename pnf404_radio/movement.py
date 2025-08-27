@@ -80,7 +80,7 @@ class MovementController:
             positions[:, 0] = r * np.cos(self.angles)
             positions[:, 1] = r * np.sin(self.angles)
         elif mode is MovementMode.SPIRAL:
-            r = self.spiral_base + self.spiral_offsets
+            r = (self.spiral_base + self.spiral_offsets) % self.boundary
             positions[:, 0] = r * np.cos(self.angles)
             positions[:, 1] = r * np.sin(self.angles)
         elif mode is MovementMode.DRIFT:
@@ -120,19 +120,17 @@ class MovementController:
 
         self.angles += 0.02
         self.spiral_base += 0.5
-        r = self.spiral_base + self.spiral_offsets
+        r = (self.spiral_base + self.spiral_offsets) % self.boundary
         self.positions[:, 0] = r * np.cos(self.angles)
         self.positions[:, 1] = r * np.sin(self.angles)
-        if self.spiral_base + self.spiral_offsets[-1] > self.boundary:
-            self.spiral_base = self.ring_radius * 0.2
         return {}
 
     def _update_drift(self) -> Dict[str, np.ndarray]:
         """Advance animation using slow drifting motion."""
 
-        self.velocities += np.random.uniform(-0.02, 0.02, size=(self.sprite_count, 2))
+        self.velocities += np.random.uniform(-0.05, 0.05, size=(self.sprite_count, 2))
         self.velocities *= 0.99
-        np.clip(self.velocities, -1, 1, out=self.velocities)
+        np.clip(self.velocities, -2, 2, out=self.velocities)
         self.positions += self.velocities
         self._apply_boundary()
         return {}

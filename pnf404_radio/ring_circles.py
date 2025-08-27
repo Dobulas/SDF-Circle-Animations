@@ -87,7 +87,7 @@ def run() -> int:
         plot.addItem(item)
         sprite_items.append(item)
 
-    ring_radius = 300
+    ring_radius = 380
     boundary = width / 2 - 50
     controller = MovementController(
         sprite_count, ring_radius, boundary, start_delay=1.0
@@ -103,9 +103,7 @@ def run() -> int:
     transition_frames = 0
     start_positions = np.zeros((sprite_count, 2))
     start_scales = np.ones(sprite_count)
-    target_positions = np.zeros((sprite_count, 2))
     target_scales = np.ones(sprite_count)
-    target_velocities = np.zeros((sprite_count, 2))
     pending_mode = movement_mode
 
     def transition_to_mode(new_mode: MovementMode, duration: float) -> None:
@@ -123,9 +121,9 @@ def run() -> int:
             start_scales[i] = item.scale()
 
         positions, velocities = controller.get_start_state(new_mode)
-        target_positions[:] = positions
+        controller.positions = positions
+        controller.velocities = velocities
         target_scales[:] = controller.base_scale_for(new_mode)
-        target_velocities[:] = velocities
         pending_mode = new_mode
         transition_frames = max(1, int(duration))
         transition_frame = 0
@@ -156,22 +154,21 @@ def run() -> int:
         default_scale = 1.0
 
         if transition_active:
+            extras = controller.update(pending_mode)
             transition_frame += 1
             alpha = transition_frame / transition_frames
             alpha = 0.5 - 0.5 * np.cos(np.pi * alpha)
-            interp_pos = (1 - alpha) * start_positions + alpha * target_positions
-            interp_scale = (1 - alpha) * start_scales + alpha * target_scales
+            target_pos = controller.positions
+            target_scale = extras.get("scale", target_scales)
+            interp_pos = (1 - alpha) * start_positions + alpha * target_pos
+            interp_scale = (1 - alpha) * start_scales + alpha * target_scale
             for i, item in enumerate(sprite_items):
                 x, y = interp_pos[i]
                 item.setPos(x - width / 2, y - height / 2)
                 item.setScale(interp_scale[i])
             if transition_frame >= transition_frames:
                 transition_active = False
-                controller.positions = target_positions.copy()
-                controller.velocities = target_velocities.copy()
                 movement_mode = pending_mode
-                for i, item in enumerate(sprite_items):
-                    item.setScale(target_scales[i])
             return
 
         extras = controller.update(movement_mode)
