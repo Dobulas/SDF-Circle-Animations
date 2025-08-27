@@ -22,7 +22,7 @@ def generate_simple_noise(
     intensity: float = 10,
 ) -> np.ndarray:
     """Generate sine-cosine-based noise."""
-    y, x = np.meshgrid(np.arange(height), np.arange(width))
+    y, x = np.meshgrid(np.arange(height), np.arange(width), indexing="ij")
     noise = np.sin(x * scale) + np.cos(y * scale)
     return noise * intensity
 
@@ -38,7 +38,7 @@ def create_sprite(
     noise_intensity: float,
 ) -> np.ndarray:
     """Create a layered signed distance field array with noise."""
-    y, x = np.meshgrid(np.arange(height), np.arange(width))
+    y, x = np.meshgrid(np.arange(height), np.arange(width), indexing="ij")
     combined_sdf = np.zeros((height, width))
     for radius in radii:
         sdf = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2) - radius
