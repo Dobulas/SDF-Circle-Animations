@@ -72,7 +72,8 @@ class MovementController:
 
         if mode is MovementMode.HELIX:
             depth = 0.5 + 0.5 * np.sin(self.angles + self.t)
-            return 0.5 + depth
+            scale_min, scale_max = 0.8, 1.2
+            return scale_min + depth * (scale_max - scale_min)
         return np.ones(self.sprite_count)
 
     def get_start_state(self, mode: MovementMode) -> tuple[np.ndarray, np.ndarray]:
@@ -181,8 +182,19 @@ class MovementController:
 
         return state
 
-    def update(self, mode: MovementMode) -> Dict[str, np.ndarray]:
-        """Advance the animation by one frame."""
+    def update(
+        self, mode: MovementMode, z_offset: float = 0.0
+    ) -> Dict[str, np.ndarray]:
+        """Advance the animation by one frame.
+
+        Parameters
+        ----------
+        mode:
+            Selected movement pattern.
+        z_offset:
+            Additional vertical spacing applied in :class:`MovementMode.HELIX`.
+            Defaults to ``0.0``.
+        """
 
         dt = 0.01
         self.t += dt
@@ -244,9 +256,12 @@ class MovementController:
         elif mode is MovementMode.HELIX:
             self.angles += 0.02
             depth = 0.5 + 0.5 * np.sin(self.angles + self.t)
-            extras["scale"] = 0.5 + depth
+            scale_min, scale_max = 0.8, 1.2
+            extras["scale"] = scale_min + depth * (scale_max - scale_min)
             self.positions[:, 0] = self.ring_radius * np.cos(self.angles)
-            self.positions[:, 1] = self.ring_radius * np.sin(self.angles)
+            self.positions[:, 1] = (
+                self.ring_radius * np.sin(self.angles) + z_offset * depth
+            )
         elif mode is MovementMode.FIGURE_EIGHT:
             self.angles += 0.02
             a = self.ring_radius * 0.6
