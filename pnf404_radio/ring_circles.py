@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from itertools import cycle
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -105,6 +106,7 @@ def run() -> int:
     start_scales = np.ones(sprite_count)
     target_scales = np.ones(sprite_count)
     pending_mode = movement_mode
+    last_time = time.perf_counter()
 
     def transition_to_mode(new_mode: MovementMode, duration: float) -> None:
         """Interpolate sprites toward ``new_mode`` over ``duration`` frames."""
@@ -149,12 +151,16 @@ def run() -> int:
     def update() -> None:
         """Advance the animation by one frame."""
 
-        nonlocal transition_active, transition_frame, movement_mode
+        nonlocal transition_active, transition_frame, movement_mode, last_time
+
+        now = time.perf_counter()
+        dt = now - last_time
+        last_time = now
 
         default_scale = 1.0
 
         if transition_active:
-            extras = controller.update(pending_mode)
+            extras = controller.update(pending_mode, dt)
             transition_frame += 1
             alpha = transition_frame / transition_frames
             alpha = 0.5 - 0.5 * np.cos(np.pi * alpha)
@@ -171,7 +177,7 @@ def run() -> int:
                 movement_mode = pending_mode
             return
 
-        extras = controller.update(movement_mode)
+        extras = controller.update(movement_mode, dt)
         has_scale = "scale" in extras
         for i, item in enumerate(sprite_items):
             x, y = controller.positions[i]
