@@ -20,7 +20,7 @@ def run() -> int:
     rotation, emphasising the starting shape.
     """
 
-    width, height = 1000, 1000
+    width, height = 1920, 1080
     center_x, center_y = width // 2, height // 2
     radii = [100, 80, 60]
     noise_scale = 0.02
@@ -29,7 +29,7 @@ def run() -> int:
 
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
     win = pg.GraphicsLayoutWidget(show=True, title="PNF 404 Radio - Ring Circles")
-    win.resize(800, 800)
+    win.resize(width, height)
     win.setBackground("#D6DDBE")
 
     plot = win.addPlot()
@@ -78,9 +78,10 @@ def run() -> int:
         sprite_items.append(item)
 
     ring_radius = 450
-    boundary = width / 2 - 20
+    boundary_x = width / 2 - 20
+    boundary_y = height / 2 - 20
     controller = MovementController(
-        sprite_count, ring_radius, boundary, start_delay=1.0
+        sprite_count, ring_radius, boundary_x, boundary_y, start_delay=1.0
     )
     movement_mode = MovementMode.CIRCLE
 
