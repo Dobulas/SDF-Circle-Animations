@@ -107,6 +107,7 @@ def run() -> int:
     target_scales = np.ones(sprite_count)
     pending_mode = movement_mode
     last_time = time.perf_counter()
+    smoothed_dt = 1.0 / 60.0  # initial guess for a 60 FPS frame time
 
     def transition_to_mode(new_mode: MovementMode, duration: float) -> None:
         """Interpolate sprites toward ``new_mode`` over ``duration`` frames."""
@@ -151,11 +152,14 @@ def run() -> int:
     def update() -> None:
         """Advance the animation by one frame."""
 
-        nonlocal transition_active, transition_frame, movement_mode, last_time
+        nonlocal transition_active, transition_frame, movement_mode
+        nonlocal last_time, smoothed_dt
 
         now = time.perf_counter()
-        dt = now - last_time
+        raw_dt = now - last_time
         last_time = now
+        smoothed_dt = 0.9 * smoothed_dt + 0.1 * raw_dt  # exponential moving average
+        dt = smoothed_dt
 
         default_scale = 1.0
 
