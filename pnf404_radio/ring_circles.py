@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from itertools import cycle
+import random
 import time
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pyqtgraph as pg
+from matplotlib.colors import to_rgba
 from pyqtgraph.Qt import QtGui, QtWidgets
 
 from .movement import MovementController, MovementMode
@@ -31,34 +31,21 @@ def run() -> int:
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
     win = pg.GraphicsLayoutWidget(show=True, title="PNF 404 Radio - Ring Circles")
     win.resize(800, 800)
-    win.setBackground("w")
+    win.setBackground("#0caceb")
 
     plot = win.addPlot()
     plot.setAspectLocked(True)
     plot.hideAxis("bottom")
     plot.hideAxis("left")
 
-    sequential_colormaps = [
-        plt.cm.Greys,
-        plt.cm.Purples,
-        plt.cm.Blues,
-        plt.cm.Greens,
-        plt.cm.Oranges,
-        plt.cm.Reds,
-        plt.cm.YlOrBr,
-        plt.cm.YlOrRd,
-        plt.cm.OrRd,
-        plt.cm.PuRd,
-        plt.cm.RdPu,
-        plt.cm.BuPu,
-        plt.cm.GnBu,
-        plt.cm.PuBu,
-        plt.cm.YlGnBu,
-        plt.cm.PuBuGn,
-        plt.cm.BuGn,
-        plt.cm.YlGn,
+    palette = [
+        "#adb397",
+        "#bcc2a8",
+        "#909771",
+        "#6a7432",
+        "#7b835b",
+        "#747c4d",
     ]
-    colormap_cycle = cycle(sequential_colormaps)
 
     sprites = []
     for _ in range(sprite_count):
@@ -74,10 +61,13 @@ def run() -> int:
         normalized_sdf = (layered_sdf - layered_sdf.min()) / (
             layered_sdf.max() - layered_sdf.min()
         )
-        cmap = next(colormap_cycle)
-        colors_layered = cmap(normalized_sdf)
+        r, g, b, _ = to_rgba(random.choice(palette))
+        colors_layered = np.zeros((*normalized_sdf.shape, 4))
+        colors_layered[..., 0] = r
+        colors_layered[..., 1] = g
+        colors_layered[..., 2] = b
         alpha_layered = np.clip(1 - normalized_sdf**2, 0, 1)
-        colors_layered[..., -1] = alpha_layered
+        colors_layered[..., 3] = alpha_layered
         sprite_rgba_8u = (colors_layered * 255).astype(np.uint8)
         sprites.append(sprite_rgba_8u)
 
