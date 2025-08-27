@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import Enum, auto
 from dataclasses import dataclass, field
-from typing import Dict
+from typing import Callable, Dict
 
 import numpy as np
 
@@ -198,93 +198,219 @@ class MovementController:
 
         dt = 0.01
         self.t += dt
-        extras: Dict[str, np.ndarray] = {}
 
-        if mode is MovementMode.CIRCLE:
-            self.angles += 0.01
-            r = self.ring_radius
-            self.positions[:, 0] = r * np.cos(self.angles)
-            self.positions[:, 1] = r * np.sin(self.angles)
-        elif mode is MovementMode.RANDOM:
-            self.velocities += np.random.uniform(-0.2, 0.2, size=(self.sprite_count, 2))
-            self.velocities *= 0.98
-            np.clip(self.velocities, -3, 3, out=self.velocities)
-            self.positions += self.velocities
-            self._apply_boundary()
-        elif mode is MovementMode.ELLIPTICAL:
-            self.angles += 0.01
-            orientation = self.t * 0.05
-            cos_o, sin_o = np.cos(orientation), np.sin(orientation)
-            a = self.ellipse_axes[:, 0]
-            b = self.ellipse_axes[:, 1]
-            x = a * np.cos(self.angles)
-            y = b * np.sin(self.angles)
-            self.positions[:, 0] = cos_o * x - sin_o * y
-            self.positions[:, 1] = sin_o * x + cos_o * y
-        elif mode is MovementMode.SPIRAL:
-            self.angles += 0.02
-            amplitude = self.ring_radius * 0.3
-            r = self.ring_radius + amplitude * np.sin(self.t + self.phases)
-            self.positions[:, 0] = r * np.cos(self.angles)
-            self.positions[:, 1] = r * np.sin(self.angles)
-        elif mode is MovementMode.LISSAJOUS:
-            freq = self.lissajous_freqs
-            self.positions[:, 0] = self.ring_radius * np.sin(
-                freq[:, 0] * self.t + self.phases
-            )
-            self.positions[:, 1] = self.ring_radius * np.sin(
-                freq[:, 1] * self.t + 2 * self.phases
-            )
-        elif mode is MovementMode.WOBBLE:
-            self.angles += 0.02
-            amplitude = self.ring_radius * 0.1
-            r = self.ring_radius + amplitude * np.sin(self.t * 2 + self.phases)
-            self.positions[:, 0] = r * np.cos(self.angles)
-            self.positions[:, 1] = r * np.sin(self.angles)
-        elif mode is MovementMode.AVOIDANCE:
-            self._avoidance_step()
-        elif mode is MovementMode.WAVE:
-            self.angles += 0.02
-            phase = self.phases
-            offset = 0.5 * np.sin(self.t + np.arange(self.sprite_count))
-            self.positions[:, 0] = self.ring_radius * np.cos(
-                self.angles + offset + phase
-            )
-            self.positions[:, 1] = self.ring_radius * np.sin(
-                self.angles + offset + phase
-            )
-        elif mode is MovementMode.HELIX:
-            self.angles += 0.02
-            depth = 0.5 + 0.5 * np.sin(self.angles + self.t)
-            scale_min, scale_max = 0.8, 1.2
-            extras["scale"] = scale_min + depth * (scale_max - scale_min)
-            self.positions[:, 0] = self.ring_radius * np.cos(self.angles)
-            self.positions[:, 1] = (
-                self.ring_radius * np.sin(self.angles) + z_offset * depth
-            )
-        elif mode is MovementMode.FIGURE_EIGHT:
-            self.angles += 0.02
-            a = self.ring_radius * 0.6
-            b = self.ring_radius * 0.4
-            self.positions[:, 0] = a * np.sin(self.angles)
-            self.positions[:, 1] = b * np.sin(2 * self.angles)
-        elif mode is MovementMode.CASCADE:
-            self.angles += 0.02
-            for i in range(self.sprite_count):
-                r = self.cascade_radii[i]
-                angle = self.angles[i] * (self.ring_radius / r)
-                self.positions[i, 0] = r * np.cos(angle)
-                self.positions[i, 1] = r * np.sin(angle)
-        elif mode is MovementMode.DRIFT:
-            self.velocities += np.random.uniform(
-                -0.05, 0.05, size=(self.sprite_count, 2)
-            )
-            self.velocities *= 0.99
-            np.clip(self.velocities, -1, 1, out=self.velocities)
-            self.positions += self.velocities
-            self._apply_boundary()
+        handlers: dict[MovementMode, Callable[[float], Dict[str, np.ndarray]]] = {
+            MovementMode.CIRCLE: self._update_circle,
+            MovementMode.RANDOM: self._update_random,
+            MovementMode.ELLIPTICAL: self._update_elliptical,
+            MovementMode.SPIRAL: self._update_spiral,
+            MovementMode.LISSAJOUS: self._update_lissajous,
+            MovementMode.WOBBLE: self._update_wobble,
+            MovementMode.AVOIDANCE: self._update_avoidance,
+            MovementMode.WAVE: self._update_wave,
+            MovementMode.HELIX: self._update_helix,
+            MovementMode.FIGURE_EIGHT: self._update_figure_eight,
+            MovementMode.CASCADE: self._update_cascade,
+            MovementMode.DRIFT: self._update_drift,
+        }
 
+        extras = handlers[mode](z_offset)
         return extras
+
+    def _update_circle(self, z_offset: float = 0.0) -> Dict[str, np.ndarray]:
+        """Advance animation using circular motion.
+
+        Parameters
+        ----------
+        z_offset:
+            Unused for this movement mode. Included for interface consistency.
+        """
+
+        self.angles += 0.01
+        r = self.ring_radius
+        self.positions[:, 0] = r * np.cos(self.angles)
+        self.positions[:, 1] = r * np.sin(self.angles)
+        return {}
+
+    def _update_random(self, z_offset: float = 0.0) -> Dict[str, np.ndarray]:
+        """Advance animation using random walk motion.
+
+        Parameters
+        ----------
+        z_offset:
+            Unused for this movement mode. Included for interface consistency.
+        """
+
+        self.velocities += np.random.uniform(-0.2, 0.2, size=(self.sprite_count, 2))
+        self.velocities *= 0.98
+        np.clip(self.velocities, -3, 3, out=self.velocities)
+        self.positions += self.velocities
+        self._apply_boundary()
+        return {}
+
+    def _update_elliptical(self, z_offset: float = 0.0) -> Dict[str, np.ndarray]:
+        """Advance animation using elliptical orbits.
+
+        Parameters
+        ----------
+        z_offset:
+            Unused for this movement mode. Included for interface consistency.
+        """
+
+        self.angles += 0.01
+        orientation = self.t * 0.05
+        cos_o, sin_o = np.cos(orientation), np.sin(orientation)
+        a = self.ellipse_axes[:, 0]
+        b = self.ellipse_axes[:, 1]
+        x = a * np.cos(self.angles)
+        y = b * np.sin(self.angles)
+        self.positions[:, 0] = cos_o * x - sin_o * y
+        self.positions[:, 1] = sin_o * x + cos_o * y
+        return {}
+
+    def _update_spiral(self, z_offset: float = 0.0) -> Dict[str, np.ndarray]:
+        """Advance animation using spiral motion.
+
+        Parameters
+        ----------
+        z_offset:
+            Unused for this movement mode. Included for interface consistency.
+        """
+
+        self.angles += 0.02
+        amplitude = self.ring_radius * 0.3
+        r = self.ring_radius + amplitude * np.sin(self.t + self.phases)
+        self.positions[:, 0] = r * np.cos(self.angles)
+        self.positions[:, 1] = r * np.sin(self.angles)
+        return {}
+
+    def _update_lissajous(self, z_offset: float = 0.0) -> Dict[str, np.ndarray]:
+        """Advance animation using Lissajous curves.
+
+        Parameters
+        ----------
+        z_offset:
+            Unused for this movement mode. Included for interface consistency.
+        """
+
+        freq = self.lissajous_freqs
+        self.positions[:, 0] = self.ring_radius * np.sin(
+            freq[:, 0] * self.t + self.phases
+        )
+        self.positions[:, 1] = self.ring_radius * np.sin(
+            freq[:, 1] * self.t + 2 * self.phases
+        )
+        return {}
+
+    def _update_wobble(self, z_offset: float = 0.0) -> Dict[str, np.ndarray]:
+        """Advance animation using radial wobble.
+
+        Parameters
+        ----------
+        z_offset:
+            Unused for this movement mode. Included for interface consistency.
+        """
+
+        self.angles += 0.02
+        amplitude = self.ring_radius * 0.1
+        r = self.ring_radius + amplitude * np.sin(self.t * 2 + self.phases)
+        self.positions[:, 0] = r * np.cos(self.angles)
+        self.positions[:, 1] = r * np.sin(self.angles)
+        return {}
+
+    def _update_avoidance(self, z_offset: float = 0.0) -> Dict[str, np.ndarray]:
+        """Advance animation using avoidance behaviour.
+
+        Parameters
+        ----------
+        z_offset:
+            Unused for this movement mode. Included for interface consistency.
+        """
+
+        self._avoidance_step()
+        return {}
+
+    def _update_wave(self, z_offset: float = 0.0) -> Dict[str, np.ndarray]:
+        """Advance animation using a travelling wave pattern.
+
+        Parameters
+        ----------
+        z_offset:
+            Unused for this movement mode. Included for interface consistency.
+        """
+
+        self.angles += 0.02
+        phase = self.phases
+        offset = 0.5 * np.sin(self.t + np.arange(self.sprite_count))
+        self.positions[:, 0] = self.ring_radius * np.cos(self.angles + offset + phase)
+        self.positions[:, 1] = self.ring_radius * np.sin(self.angles + offset + phase)
+        return {}
+
+    def _update_helix(self, z_offset: float = 0.0) -> Dict[str, np.ndarray]:
+        """Advance animation using helix motion.
+
+        Parameters
+        ----------
+        z_offset:
+            Additional vertical spacing applied along the helix.
+        """
+
+        self.angles += 0.02
+        depth = 0.5 + 0.5 * np.sin(self.angles + self.t)
+        scale_min, scale_max = 0.8, 1.2
+        scale = scale_min + depth * (scale_max - scale_min)
+        self.positions[:, 0] = self.ring_radius * np.cos(self.angles)
+        self.positions[:, 1] = self.ring_radius * np.sin(self.angles) + z_offset * depth
+        return {"scale": scale}
+
+    def _update_figure_eight(self, z_offset: float = 0.0) -> Dict[str, np.ndarray]:
+        """Advance animation using a figure-eight path.
+
+        Parameters
+        ----------
+        z_offset:
+            Unused for this movement mode. Included for interface consistency.
+        """
+
+        self.angles += 0.02
+        a = self.ring_radius * 0.6
+        b = self.ring_radius * 0.4
+        self.positions[:, 0] = a * np.sin(self.angles)
+        self.positions[:, 1] = b * np.sin(2 * self.angles)
+        return {}
+
+    def _update_cascade(self, z_offset: float = 0.0) -> Dict[str, np.ndarray]:
+        """Advance animation using cascading radial offsets.
+
+        Parameters
+        ----------
+        z_offset:
+            Unused for this movement mode. Included for interface consistency.
+        """
+
+        self.angles += 0.02
+        for i in range(self.sprite_count):
+            r = self.cascade_radii[i]
+            angle = self.angles[i] * (self.ring_radius / r)
+            self.positions[i, 0] = r * np.cos(angle)
+            self.positions[i, 1] = r * np.sin(angle)
+        return {}
+
+    def _update_drift(self, z_offset: float = 0.0) -> Dict[str, np.ndarray]:
+        """Advance animation using slow drifting motion.
+
+        Parameters
+        ----------
+        z_offset:
+            Unused for this movement mode. Included for interface consistency.
+        """
+
+        self.velocities += np.random.uniform(-0.05, 0.05, size=(self.sprite_count, 2))
+        self.velocities *= 0.99
+        np.clip(self.velocities, -1, 1, out=self.velocities)
+        self.positions += self.velocities
+        self._apply_boundary()
+        return {}
 
     def _apply_boundary(self) -> None:
         """Keep sprites inside the boundary box."""
