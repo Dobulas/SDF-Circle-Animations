@@ -67,6 +67,36 @@ class MovementController:
             1 + np.arange(self.sprite_count) / self.sprite_count
         )
 
+    def get_transition_state(self, mode: MovementMode) -> dict[str, np.ndarray | float]:
+        """Return state after one step of ``mode`` without modifying the controller."""
+
+        pos_backup = self.positions.copy()
+        vel_backup = self.velocities.copy()
+        ang_backup = self.angles.copy()
+        t_backup = self.t
+
+        if mode in {MovementMode.RANDOM, MovementMode.DRIFT}:
+            self.velocities = np.random.uniform(-1.5, 1.5, size=(self.sprite_count, 2))
+        else:
+            self.velocities[:] = 0
+
+        extras = self.update(mode)
+        state: dict[str, np.ndarray | float] = {
+            "positions": self.positions.copy(),
+            "velocities": self.velocities.copy(),
+            "angles": self.angles.copy(),
+            "t": self.t,
+        }
+        if "scale" in extras:
+            state["scale"] = extras["scale"].copy()
+
+        self.positions = pos_backup
+        self.velocities = vel_backup
+        self.angles = ang_backup
+        self.t = t_backup
+
+        return state
+
     def update(self, mode: MovementMode) -> Dict[str, np.ndarray]:
         """Advance the animation by one frame."""
 
