@@ -14,7 +14,11 @@ from .utils import create_sprite, get_random_center
 
 
 def run() -> int:
-    """Display the ring circle animation."""
+    """Display the ring circle animation.
+
+    Sprites hold a circular formation briefly before beginning their
+    rotation, emphasising the starting shape.
+    """
 
     width, height = 1000, 1000
     margin = 150
@@ -86,7 +90,9 @@ def run() -> int:
 
     ring_radius = 300
     boundary = width / 2 - 50
-    controller = MovementController(sprite_count, ring_radius, boundary)
+    controller = MovementController(
+        sprite_count, ring_radius, boundary, start_delay=1.0
+    )
     movement_mode = MovementMode.CIRCLE
 
     for i, item in enumerate(sprite_items):
