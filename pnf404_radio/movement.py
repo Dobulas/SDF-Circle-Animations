@@ -86,7 +86,8 @@ class MovementController:
             positions[:, 1] = r * np.sin(2 * self.angles)
         elif mode is MovementMode.DRIFT:
             positions[:] = self.positions
-            velocities = np.random.uniform(-0.05, 0.05, size=(self.sprite_count, 2))
+            speed = 0.1  # doubled from 0.05 to increase drift speed
+            velocities = np.random.uniform(-speed, speed, size=(self.sprite_count, 2))
         else:
             positions[:] = self.positions
 
