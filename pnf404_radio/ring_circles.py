@@ -25,7 +25,7 @@ def run() -> int:
     radii = [100, 80, 60]
     noise_scale = 0.02
     noise_intensity = 5
-    sprite_count = 15
+    sprite_count = 12
 
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
     win = pg.GraphicsLayoutWidget(show=True, title="PNF 404 Radio - Ring Circles")
@@ -77,8 +77,8 @@ def run() -> int:
         plot.addItem(item)
         sprite_items.append(item)
 
-    ring_radius = 380
-    boundary = width / 2 - 50
+    ring_radius = 450
+    boundary = width / 2 - 20
     controller = MovementController(
         sprite_count, ring_radius, boundary, start_delay=1.0
     )
