@@ -27,8 +27,10 @@ class MovementController:
         Number of sprites to animate.
     ring_radius:
         Radius of the circular path.
-    boundary:
-        Half-width of the bounding square for drift behaviour.
+    boundary_x:
+        Half-width of the bounding rectangle for drift behaviour.
+    boundary_y:
+        Half-height of the bounding rectangle for drift behaviour.
     start_delay:
         Seconds to hold the initial arrangement before motion begins.
     angular_speed:
@@ -37,7 +39,8 @@ class MovementController:
 
     sprite_count: int
     ring_radius: float
-    boundary: float
+    boundary_x: float
+    boundary_y: float
     start_delay: float = 0.0
     angular_speed: float = 0.6
     angles: np.ndarray = field(init=False)
@@ -135,10 +138,10 @@ class MovementController:
 
         for i in range(self.sprite_count):
             x, y = self.positions[i]
-            if abs(x) > self.boundary:
+            if abs(x) > self.boundary_x:
                 self.velocities[i, 0] *= -1
-                x = np.sign(x) * self.boundary
-            if abs(y) > self.boundary:
+                x = np.sign(x) * self.boundary_x
+            if abs(y) > self.boundary_y:
                 self.velocities[i, 1] *= -1
-                y = np.sign(y) * self.boundary
+                y = np.sign(y) * self.boundary_y
             self.positions[i] = x, y
