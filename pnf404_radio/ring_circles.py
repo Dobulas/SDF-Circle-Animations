@@ -10,7 +10,7 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui, QtWidgets
 
 from .movement import MovementController, MovementMode
-from .utils import create_sprite, get_random_center
+from .utils import create_sprite
 
 
 def run() -> int:
@@ -21,7 +21,7 @@ def run() -> int:
     """
 
     width, height = 1000, 1000
-    margin = 150
+    center_x, center_y = width // 2, height // 2
     radii = [100, 80, 60]
     noise_scale = 0.02
     noise_intensity = 5
@@ -61,10 +61,9 @@ def run() -> int:
 
     sprites = []
     for _ in range(sprite_count):
-        cx, cy = get_random_center(width, height, margin)
         layered_sdf = create_sprite(
-            cx,
-            cy,
+            center_x,
+            center_y,
             radii,
             width=width,
             height=height,
