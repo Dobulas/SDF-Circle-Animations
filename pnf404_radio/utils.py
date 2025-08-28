@@ -1,9 +1,7 @@
 """Utility functions for PNF 404 Radio animations."""
 
-from __future__ import annotations
-
 from collections.abc import Sequence
-from typing import Tuple
+from typing import Tuple, TYPE_CHECKING, Any
 
 import numpy as np
 import taichi as ti
@@ -12,6 +10,16 @@ try:
     ti.init(arch=ti.metal, default_fp=ti.f32)
 except Exception:
     ti.init(arch=ti.cpu, default_fp=ti.f32)
+
+# Type aliases to keep Pylance/pyright happy while giving Taichi the runtime types
+if TYPE_CHECKING:
+    F32 = float
+    Nd1F = Any
+    Nd2F = Any
+else:
+    F32 = ti.f32
+    Nd1F = ti.types.ndarray(dtype=ti.f32, ndim=1)
+    Nd2F = ti.types.ndarray(dtype=ti.f32, ndim=2)
 
 
 def get_random_center(width: int, height: int, margin: int) -> Tuple[int, int]:
@@ -61,13 +69,13 @@ def create_sprite(
 
 @ti.kernel
 def _sdf_kernel(
-    center_x: ti.i32,
-    center_y: ti.i32,
-    radii: ti.types.ndarray(dtype=ti.f32, ndim=1),
-    scale: ti.f32,
-    intensity: ti.f32,
-    out: ti.types.ndarray(dtype=ti.f32, ndim=2),
-) -> None:
+    center_x: F32,
+    center_y: F32,
+    radii: Nd1F,
+    scale: F32,
+    intensity: F32,
+    out: Nd2F,
+):
     """Kernel to compute the signed distance field with simple noise."""
 
     for i, j in out:
