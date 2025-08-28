@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import random
+from collections import deque
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Dict, List, Optional
+from typing import Deque, Dict, List, Optional
 
 import numpy as np
 import pyqtgraph as pg
@@ -125,6 +126,8 @@ def run() -> int:
     executor = ThreadPoolExecutor(max_workers=1)
     pending_palette: Optional[int] = None
     palette_shortcuts: List[QtWidgets.QShortcut] = []
+    palette_queue: Deque[int] = deque()
+    current_future: Optional[Future[List[np.ndarray]]] = None
 
     def _compute_images(index: int) -> List[np.ndarray]:
         """Generate RGBA sprites for the palette at ``index``."""
@@ -133,28 +136,44 @@ def run() -> int:
         return [colorize(field, cfg["palette"]) for field in fields]
 
     def _apply_images(index: int, images: List[np.ndarray]) -> None:
-        """Apply ``images`` for palette ``index`` if still pending."""
+        """Apply ``images`` for palette ``index``."""
 
-        if pending_palette != index:
-            return
         win.setBackground(PALETTES[index]["background"])
         for item, img in zip(sprite_items, images):
             item.setImage(img)
 
-    def apply_palette(index: int) -> None:
-        """Asynchronously switch to the palette corresponding to ``index``."""
+    def _process_palette_queue() -> None:
+        """Process the next palette change in the queue."""
 
-        nonlocal pending_palette
+        nonlocal current_future, pending_palette
+        if current_future is not None and not current_future.done():
+            return
+        if not palette_queue:
+            return
+        pending_palette = palette_queue.popleft()
+        current_future = executor.submit(_compute_images, pending_palette)
+
+        def _done(fut: Future[List[np.ndarray]], index: int = pending_palette) -> None:
+            images = fut.result()
+
+            def _apply_and_continue() -> None:
+                nonlocal current_future, pending_palette
+                _apply_images(index, images)
+                current_future = None
+                pending_palette = None
+                _process_palette_queue()
+
+            pg.QtCore.QTimer.singleShot(0, _apply_and_continue)
+
+        current_future.add_done_callback(_done)
+
+    def apply_palette(index: int) -> None:
+        """Queue palette ``index`` to be applied sequentially."""
+
         if index not in PALETTES:
             return
-        pending_palette = index
-        future = executor.submit(_compute_images, index)
-
-        def _done(fut: Future[List[np.ndarray]]) -> None:
-            images = fut.result()
-            pg.QtCore.QTimer.singleShot(0, lambda: _apply_images(index, images))
-
-        future.add_done_callback(_done)
+        palette_queue.append(index)
+        _process_palette_queue()
 
     for i in PALETTES:
         shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(str(i)), win)
