@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import random
-from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import numpy as np
 import pyqtgraph as pg
@@ -122,38 +121,17 @@ def run() -> int:
         plot.addItem(item)
         sprite_items.append(item)
 
-    executor = ThreadPoolExecutor(max_workers=1)
-    pending_palette: Optional[int] = None
-
-    def _compute_images(index: int) -> List[np.ndarray]:
-        """Generate RGBA sprites for the palette at ``index``."""
-
-        cfg = PALETTES[index]
-        return [colorize(field, cfg["palette"]) for field in fields]
-
-    def _apply_images(index: int, images: List[np.ndarray]) -> None:
-        """Apply ``images`` for palette ``index`` if still pending."""
-
-        if pending_palette != index:
-            return
-        win.setBackground(PALETTES[index]["background"])
-        for item, img in zip(sprite_items, images):
-            item.setImage(img)
-
     def apply_palette(index: int) -> None:
-        """Asynchronously switch to the palette corresponding to ``index``."""
+        """Switch to the palette corresponding to ``index``."""
 
-        nonlocal pending_palette
-        if index not in PALETTES:
+        nonlocal palette_cfg
+        cfg = PALETTES.get(index)
+        if cfg is None:
             return
-        pending_palette = index
-        future = executor.submit(_compute_images, index)
-
-        def _done(fut: Future[List[np.ndarray]]) -> None:
-            images = fut.result()
-            pg.QtCore.QTimer.singleShot(0, lambda: _apply_images(index, images))
-
-        future.add_done_callback(_done)
+        palette_cfg = cfg
+        win.setBackground(cfg["background"])
+        for i, item in enumerate(sprite_items):
+            item.setImage(colorize(fields[i], cfg["palette"]))
 
     for i in PALETTES:
         shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(str(i)), win)
