@@ -70,10 +70,10 @@ def run() -> int:
     """
 
     window_width, window_height = 1920, 1080
-    radii = [100, 80, 60]
+    radii = [90, 70, 50]
     noise_scale = 0.02
     noise_intensity = 5
-    sprite_count = 13
+    sprite_count = 15
     margin = 20
     sprite_size = int(2 * max(radii) + margin)
 
