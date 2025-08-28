@@ -100,7 +100,6 @@ def run() -> int:
         return (colors_layered * 255).astype(np.uint8)
 
     fields: List[np.ndarray] = []
-    sprite_items = []
     for _ in range(sprite_count):
         layered_sdf = create_sprite(
             center_x,
@@ -115,23 +114,92 @@ def run() -> int:
             layered_sdf.max() - layered_sdf.min()
         )
         fields.append(normalized_sdf)
-        sprite_rgba_8u = colorize(normalized_sdf, palette_cfg["palette"])
-        item = pg.ImageItem(image=sprite_rgba_8u)
-        item.setOpts(axisOrder="row-major")
-        plot.addItem(item)
-        sprite_items.append(item)
+
+    color_cache: Dict[int, List[np.ndarray]] = {idx: [] for idx in PALETTES}
+    for idx, cfg in PALETTES.items():
+        for field in fields:
+            color_cache[idx].append(colorize(field, cfg["palette"]))
+
+    sprite_items = []
+    transition_items = []
+    for i in range(sprite_count):
+        base = pg.ImageItem(image=color_cache[1][i])
+        base.setOpts(axisOrder="row-major")
+        base.setZValue(i * 2)
+        plot.addItem(base)
+        sprite_items.append(base)
+
+        overlay = pg.ImageItem(image=color_cache[1][i])
+        overlay.setOpts(axisOrder="row-major")
+        overlay.setOpacity(0)
+        overlay.setZValue(i * 2 + 1)
+        plot.addItem(overlay)
+        transition_items.append(overlay)
+
+    def hex_to_rgb_array(color: str) -> np.ndarray:
+        """Return the RGB components of ``color`` as a float array."""
+
+        return np.array(pg.mkColor(color).getRgb()[:3], dtype=float)
+
+    current_palette = 1
+    color_transition_active = False
+    color_transition_frame = 0
+    color_transition_frames = 60
+    color_target_palette = 1
+    pending_palettes: List[int] = []
+    bg_start = hex_to_rgb_array(PALETTES[current_palette]["background"])
+    bg_target = bg_start.copy()
+
+    def finish_color_transition() -> None:
+        """Finalize any active color transition."""
+
+        nonlocal color_transition_active, current_palette, bg_start
+        if not color_transition_active:
+            return
+        for i in range(sprite_count):
+            sprite_items[i], transition_items[i] = transition_items[i], sprite_items[i]
+            transition_items[i].setOpacity(0)
+            sprite_items[i].setOpacity(1)
+        current_palette = color_target_palette
+        bg_start = hex_to_rgb_array(PALETTES[current_palette]["background"])
+        win.setBackground(PALETTES[current_palette]["background"])
+        color_transition_active = False
+
+    def trigger_next_palette_transition() -> None:
+        """Start the next transition in the queue if available."""
+
+        nonlocal color_transition_active, color_transition_frame
+        nonlocal color_target_palette, bg_target
+        if not pending_palettes:
+            return
+        next_index = pending_palettes.pop(0)
+        color_target_palette = next_index
+        for i in range(sprite_count):
+            transition_items[i].setImage(color_cache[next_index][i])
+            transition_items[i].setOpacity(0)
+        bg_target = hex_to_rgb_array(PALETTES[next_index]["background"])
+        color_transition_frame = 0
+        color_transition_active = True
+
+    def start_palette_transition(target_index: int) -> None:
+        """Queue a palette change using palette ``4`` as a transition."""
+
+        nonlocal pending_palettes
+        if target_index == current_palette:
+            return
+        finish_color_transition()
+        if target_index != 4 and current_palette != 4:
+            pending_palettes = [4, target_index]
+        else:
+            pending_palettes = [target_index]
+        trigger_next_palette_transition()
 
     def apply_palette(index: int) -> None:
-        """Switch to the palette corresponding to ``index``."""
+        """Start a palette change sequence for ``index``."""
 
-        nonlocal palette_cfg
-        cfg = PALETTES.get(index)
-        if cfg is None:
+        if index not in PALETTES:
             return
-        palette_cfg = cfg
-        win.setBackground(cfg["background"])
-        for i, item in enumerate(sprite_items):
-            item.setImage(colorize(fields[i], cfg["palette"]))
+        start_palette_transition(index)
 
     for i in PALETTES:
         shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(str(i)), win)
@@ -202,6 +270,7 @@ def run() -> int:
         """Advance the animation by one frame."""
 
         nonlocal transition_active, transition_frame, movement_mode
+        nonlocal color_transition_frame
 
         dt = fixed_dt
         default_scale = 1.0
@@ -215,24 +284,38 @@ def run() -> int:
             target_scale = extras.get("scale", target_scales)
             interp_pos = (1 - alpha) * start_positions + alpha * target_pos
             interp_scale = (1 - alpha) * start_scales + alpha * target_scale
-            for i, item in enumerate(sprite_items):
+            for i, (item_a, item_b) in enumerate(zip(sprite_items, transition_items)):
                 x, y = interp_pos[i]
-                item.setPos(x - width / 2, y - height / 2)
-                item.setScale(interp_scale[i])
+                item_a.setPos(x - width / 2, y - height / 2)
+                item_b.setPos(x - width / 2, y - height / 2)
+                item_a.setScale(interp_scale[i])
+                item_b.setScale(interp_scale[i])
             if transition_frame >= transition_frames:
                 transition_active = False
                 movement_mode = pending_mode
-            return
+        else:
+            extras = controller.update(movement_mode, dt)
+            has_scale = "scale" in extras
+            for i, (item_a, item_b) in enumerate(zip(sprite_items, transition_items)):
+                x, y = controller.positions[i]
+                item_a.setPos(x - width / 2, y - height / 2)
+                item_b.setPos(x - width / 2, y - height / 2)
+                scale = extras["scale"][i] if has_scale else default_scale
+                item_a.setScale(scale)
+                item_b.setScale(scale)
 
-        extras = controller.update(movement_mode, dt)
-        has_scale = "scale" in extras
-        for i, item in enumerate(sprite_items):
-            x, y = controller.positions[i]
-            item.setPos(x - width / 2, y - height / 2)
-            if has_scale:
-                item.setScale(extras["scale"][i])
-            else:
-                item.setScale(default_scale)
+        if color_transition_active:
+            color_transition_frame += 1
+            alpha = color_transition_frame / color_transition_frames
+            alpha = 0.5 - 0.5 * np.cos(np.pi * alpha)
+            for i in range(sprite_count):
+                sprite_items[i].setOpacity(1 - alpha)
+                transition_items[i].setOpacity(alpha)
+            bg_interp = (1 - alpha) * bg_start + alpha * bg_target
+            win.setBackground(pg.mkColor(tuple(bg_interp.astype(int))))
+            if color_transition_frame >= color_transition_frames:
+                finish_color_transition()
+                trigger_next_palette_transition()
 
     timer = pg.QtCore.QTimer()
     timer.timeout.connect(update)
