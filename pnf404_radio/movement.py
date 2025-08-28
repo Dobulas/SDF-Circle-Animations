@@ -15,6 +15,7 @@ class MovementMode(Enum):
     CIRCLE = auto()
     FIGURE_EIGHT = auto()
     DRIFT = auto()
+    ROSE = auto()
 
 
 @dataclass
@@ -35,6 +36,8 @@ class MovementController:
         Seconds to hold the initial arrangement before motion begins.
     angular_speed:
         Base angular speed in radians per second for circular motion.
+    rose_k:
+        Petal multiplier ``k`` for rose-curve motion.
     """
 
     sprite_count: int
@@ -43,6 +46,7 @@ class MovementController:
     boundary_y: float
     start_delay: float = 0.0
     angular_speed: float = 0.6
+    rose_k: int = 4
     angles: np.ndarray = field(init=False)
     positions: np.ndarray = field(init=False)
     velocities: np.ndarray = field(init=False)
@@ -63,7 +67,8 @@ class MovementController:
 
     def base_scale_for(self, mode: MovementMode) -> np.ndarray:
         """Return mode-specific starting scales."""
-
+        if mode is MovementMode.ROSE:
+            return np.full(self.sprite_count, 1.0 / max(1, self.rose_k))
         return np.ones(self.sprite_count)
 
     def get_start_state(self, mode: MovementMode) -> tuple[np.ndarray, np.ndarray]:
@@ -88,6 +93,11 @@ class MovementController:
             positions[:] = self.positions
             speed = 0.1  # doubled from 0.05 to increase drift speed
             velocities = np.random.uniform(-speed, speed, size=(self.sprite_count, 2))
+        elif mode is MovementMode.ROSE:
+            r = self.ring_radius
+            k = self.rose_k
+            positions[:, 0] = r * np.cos(k * self.angles) * np.cos(self.angles)
+            positions[:, 1] = r * np.cos(k * self.angles) * np.sin(self.angles)
         else:
             positions[:] = self.positions
 
@@ -104,6 +114,8 @@ class MovementController:
             return self._update_figure_eight(dt)
         if mode is MovementMode.DRIFT:
             return self._update_drift(dt)
+        if mode is MovementMode.ROSE:
+            return self._update_rose(dt)
         return {}
 
     def _update_circle(self, dt: float) -> Dict[str, np.ndarray]:
@@ -125,6 +137,18 @@ class MovementController:
         self.positions[:, 0] = r * np.sin(self.angles)
         self.positions[:, 1] = r * np.sin(2 * self.angles)
         return {}
+
+    def _update_rose(self, dt: float) -> Dict[str, np.ndarray]:
+        """Advance animation using rose-curve motion."""
+
+        if self.t >= self.start_delay:
+            self.angles += self.angular_speed * dt
+        r = self.ring_radius
+        k = self.rose_k
+        self.positions[:, 0] = r * np.cos(k * self.angles) * np.cos(self.angles)
+        self.positions[:, 1] = r * np.cos(k * self.angles) * np.sin(self.angles)
+        scale = np.full(self.sprite_count, 1.0 / max(1, k))
+        return {"scale": scale}
 
     def _update_drift(self, dt: float) -> Dict[str, np.ndarray]:
         """Advance animation using constant drift motion."""
