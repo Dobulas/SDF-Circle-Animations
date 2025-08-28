@@ -12,6 +12,19 @@ try:
 except Exception:  # pragma: no cover - optional dependency
     cp = None
 
+try:
+    import torch
+
+    if torch.backends.mps.is_available():
+        TORCH_DEVICE = torch.device("mps")
+    elif torch.cuda.is_available():
+        TORCH_DEVICE = torch.device("cuda")
+    else:  # pragma: no cover - runtime check
+        TORCH_DEVICE = torch.device("cpu")
+except Exception:  # pragma: no cover - optional dependency
+    torch = None
+    TORCH_DEVICE = None
+
 import pyqtgraph as pg
 from matplotlib.colors import to_rgba
 from pyqtgraph.Qt import QtGui, QtWidgets
@@ -77,7 +90,8 @@ def run(*, use_gpu: bool = False) -> int:
     Parameters
     ----------
     use_gpu:
-        If ``True`` and CuPy is installed, heavy computations use the GPU.
+        If ``True`` and CuPy or PyTorch are available, heavy computations use
+        the GPU (CUDA or Apple's Metal backend).
     """
 
     width, height = 1920, 1080
@@ -111,7 +125,19 @@ def run(*, use_gpu: bool = False) -> int:
         colors_layered[..., 3] = alpha_layered
         return (colors_layered * 255).astype(np.uint8)
 
-    xp = cp if use_gpu and cp is not None else np
+    xp = np
+    device = None
+    if use_gpu:
+        if cp is not None:
+            xp = cp
+        elif (
+            torch is not None
+            and TORCH_DEVICE is not None
+            and TORCH_DEVICE.type != "cpu"
+        ):
+            xp = torch
+            device = TORCH_DEVICE
+
     fields: List[np.ndarray] = []
     for _ in range(sprite_count):
         layered_sdf = create_sprite(
@@ -123,9 +149,12 @@ def run(*, use_gpu: bool = False) -> int:
             noise_scale=noise_scale,
             noise_intensity=noise_intensity,
             xp=xp,
+            device=device,
         )
-        if xp is not np:
+        if xp.__name__ == "cupy":
             layered_sdf = cp.asnumpy(layered_sdf)
+        elif xp.__name__ == "torch":
+            layered_sdf = layered_sdf.cpu().numpy()
         normalized_sdf = (layered_sdf - layered_sdf.min()) / (
             layered_sdf.max() - layered_sdf.min()
         )
