@@ -70,7 +70,7 @@ def run() -> int:
     """
 
     window_width, window_height = 1920, 1080
-    radii = [90, 70, 50]
+    radii = [70, 50, 30]
     noise_scale = 0.02
     noise_intensity = 5
     sprite_count = 15
@@ -221,10 +221,10 @@ def run() -> int:
         boundary_y = boundary_x / aspect_ratio
 
     border = QtWidgets.QGraphicsRectItem(
-        -boundary_x - max_radius - 20,
-        -boundary_y - max_radius - 20,
-        2 * (boundary_x + max_radius + 20),
-        2 * (boundary_y + max_radius + 20),
+        -boundary_x - max_radius,
+        -boundary_y - max_radius,
+        2 * (boundary_x + max_radius),
+        2 * (boundary_y + max_radius),
     )
     border.setPen(pg.mkPen(color="black", width=1))
     border.setZValue(sprite_count * 2 + 2)
