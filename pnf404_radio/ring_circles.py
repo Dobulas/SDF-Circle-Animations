@@ -221,10 +221,10 @@ def run() -> int:
         boundary_y = boundary_x / aspect_ratio
 
     border = QtWidgets.QGraphicsRectItem(
-        -boundary_x - max_radius,
-        -boundary_y - max_radius,
-        2 * (boundary_x + max_radius),
-        2 * (boundary_y + max_radius),
+        -boundary_x - max_radius - 20,
+        -boundary_y - max_radius - 20,
+        2 * (boundary_x + max_radius + 20),
+        2 * (boundary_y + max_radius + 20),
     )
     border.setPen(pg.mkPen(color="black", width=1))
     border.setZValue(sprite_count * 2 + 2)
