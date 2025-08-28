@@ -61,11 +61,11 @@ def create_sprite(
 
 @ti.kernel
 def _sdf_kernel(
-    center_x: int,
-    center_y: int,
+    center_x: ti.i32,
+    center_y: ti.i32,
     radii: ti.types.ndarray(dtype=ti.f32, ndim=1),
-    scale: float,
-    intensity: float,
+    scale: ti.f32,
+    intensity: ti.f32,
     out: ti.types.ndarray(dtype=ti.f32, ndim=2),
 ) -> None:
     """Kernel to compute the signed distance field with simple noise."""
