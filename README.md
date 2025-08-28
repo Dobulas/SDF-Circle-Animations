@@ -18,16 +18,8 @@ Run the ring circle animation:
 python run.py
 ```
 
-Add ``--gpu`` to enable GPU acceleration with [CuPy](https://cupy.dev/) if
-installed:
-
-```bash
-python run.py --gpu
-```
-
-A window will open displaying rotating circles with layered noise. This
-serves as a starting point for creating additional animations. You can switch
-between movement modes while the window is active:
+A window will open displaying rotating circles with layered noise. This serves as a starting point for creating additional animations.
+You can switch between movement modes while the window is active:
 
 * **C** - circular motion
 * **F** - figure-eight paths

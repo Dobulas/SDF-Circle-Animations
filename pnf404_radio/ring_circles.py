@@ -6,12 +6,6 @@ import random
 from typing import Dict, List
 
 import numpy as np
-
-try:
-    import cupy as cp
-except Exception:  # pragma: no cover - optional dependency
-    cp = None
-
 import pyqtgraph as pg
 from matplotlib.colors import to_rgba
 from pyqtgraph.Qt import QtGui, QtWidgets
@@ -67,17 +61,12 @@ PALETTES: Dict[int, Dict[str, List[str]]] = {
 }
 
 
-def run(*, use_gpu: bool = False) -> int:
+def run() -> int:
     """Display the ring circle animation.
 
     Sprites hold a circular formation briefly before beginning their
     rotation, emphasising the starting shape. Random drift respects the
     window's aspect ratio.
-
-    Parameters
-    ----------
-    use_gpu:
-        If ``True`` and CuPy is installed, heavy computations use the GPU.
     """
 
     width, height = 1920, 1080
@@ -111,7 +100,6 @@ def run(*, use_gpu: bool = False) -> int:
         colors_layered[..., 3] = alpha_layered
         return (colors_layered * 255).astype(np.uint8)
 
-    xp = cp if use_gpu and cp is not None else np
     fields: List[np.ndarray] = []
     for _ in range(sprite_count):
         layered_sdf = create_sprite(
@@ -122,10 +110,7 @@ def run(*, use_gpu: bool = False) -> int:
             height=height,
             noise_scale=noise_scale,
             noise_intensity=noise_intensity,
-            xp=xp,
         )
-        if xp is not np:
-            layered_sdf = cp.asnumpy(layered_sdf)
         normalized_sdf = (layered_sdf - layered_sdf.min()) / (
             layered_sdf.max() - layered_sdf.min()
         )
