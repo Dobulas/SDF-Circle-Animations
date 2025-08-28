@@ -67,8 +67,7 @@ class MovementController:
 
     def base_scale_for(self, mode: MovementMode) -> np.ndarray:
         """Return mode-specific starting scales."""
-        if mode is MovementMode.ROSE:
-            return np.full(self.sprite_count, 1.0 / max(1, self.rose_k))
+
         return np.ones(self.sprite_count)
 
     def get_start_state(self, mode: MovementMode) -> tuple[np.ndarray, np.ndarray]:
@@ -139,16 +138,19 @@ class MovementController:
         return {}
 
     def _update_rose(self, dt: float) -> Dict[str, np.ndarray]:
-        """Advance animation using rose-curve motion."""
+        """Advance animation using rose-curve motion.
+
+        The angular speed is reduced so that the radial motion of the rose
+        matches the pace of the other movement modes.
+        """
 
         if self.t >= self.start_delay:
-            self.angles += self.angular_speed * dt
+            self.angles += (self.angular_speed / max(1, self.rose_k)) * dt
         r = self.ring_radius
         k = self.rose_k
         self.positions[:, 0] = r * np.cos(k * self.angles) * np.cos(self.angles)
         self.positions[:, 1] = r * np.cos(k * self.angles) * np.sin(self.angles)
-        scale = np.full(self.sprite_count, 1.0 / max(1, k))
-        return {"scale": scale}
+        return {"scale": np.ones(self.sprite_count)}
 
     def _update_drift(self, dt: float) -> Dict[str, np.ndarray]:
         """Advance animation using constant drift motion."""
