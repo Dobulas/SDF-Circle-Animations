@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+from typing import Dict, List
 
 import numpy as np
 import pyqtgraph as pg
@@ -11,6 +12,53 @@ from pyqtgraph.Qt import QtGui, QtWidgets
 
 from .movement import MovementController, MovementMode
 from .utils import create_sprite
+
+PALETTES: Dict[int, Dict[str, List[str]]] = {
+    1: {
+        "background": "#D6DDBE",
+        "palette": [
+            "#adb397",
+            "#bcc2a8",
+            "#909771",
+            "#6a7432",
+            "#7b835b",
+            "#747c4d",
+        ],
+    },
+    2: {
+        "background": "#fff0da",
+        "palette": [
+            "#e1a232",
+            "#e39f30",
+            "#ea8d21",
+            "#f08117",
+            "#f27b12",
+            "#fc6501",
+        ],
+    },
+    3: {
+        "background": "#fdfdfc",
+        "palette": [
+            "#90b2d5",
+            "#629ccc",
+            "#5a8ab7",
+            "#2a619e",
+            "#50606f",
+            "#2d4966",
+        ],
+    },
+    4: {
+        "background": "#e7e7e7",
+        "palette": [
+            "#606060",
+            "#989898",
+            "#d7d7d7",
+            "#c7c7c7",
+            "#262626",
+            "#b7b7b7",
+        ],
+    },
+}
 
 
 def run() -> int:
@@ -30,23 +78,29 @@ def run() -> int:
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
     win = pg.GraphicsLayoutWidget(show=True, title="PNF 404 Radio - Ring Circles")
     win.resize(width, height)
-    win.setBackground("#D6DDBE")
+
+    palette_cfg = PALETTES[1]
+    win.setBackground(palette_cfg["background"])
 
     plot = win.addPlot()
     plot.setAspectLocked(True)
     plot.hideAxis("bottom")
     plot.hideAxis("left")
 
-    palette = [
-        "#adb397",
-        "#bcc2a8",
-        "#909771",
-        "#6a7432",
-        "#7b835b",
-        "#747c4d",
-    ]
+    def colorize(field: np.ndarray, palette: List[str]) -> np.ndarray:
+        """Return an RGBA sprite for ``field`` using a random ``palette`` color."""
 
-    sprites = []
+        r, g, b, _ = to_rgba(random.choice(palette))
+        colors_layered = np.zeros((*field.shape, 4))
+        colors_layered[..., 0] = r
+        colors_layered[..., 1] = g
+        colors_layered[..., 2] = b
+        alpha_layered = np.clip(1 - field**2, 0, 1)
+        colors_layered[..., 3] = alpha_layered
+        return (colors_layered * 255).astype(np.uint8)
+
+    fields: List[np.ndarray] = []
+    sprite_items = []
     for _ in range(sprite_count):
         layered_sdf = create_sprite(
             center_x,
@@ -60,22 +114,28 @@ def run() -> int:
         normalized_sdf = (layered_sdf - layered_sdf.min()) / (
             layered_sdf.max() - layered_sdf.min()
         )
-        r, g, b, _ = to_rgba(random.choice(palette))
-        colors_layered = np.zeros((*normalized_sdf.shape, 4))
-        colors_layered[..., 0] = r
-        colors_layered[..., 1] = g
-        colors_layered[..., 2] = b
-        alpha_layered = np.clip(1 - normalized_sdf**2, 0, 1)
-        colors_layered[..., 3] = alpha_layered
-        sprite_rgba_8u = (colors_layered * 255).astype(np.uint8)
-        sprites.append(sprite_rgba_8u)
-
-    sprite_items = []
-    for sprite in sprites:
-        item = pg.ImageItem(image=sprite)
+        fields.append(normalized_sdf)
+        sprite_rgba_8u = colorize(normalized_sdf, palette_cfg["palette"])
+        item = pg.ImageItem(image=sprite_rgba_8u)
         item.setOpts(axisOrder="row-major")
         plot.addItem(item)
         sprite_items.append(item)
+
+    def apply_palette(index: int) -> None:
+        """Switch to the palette corresponding to ``index``."""
+
+        nonlocal palette_cfg
+        cfg = PALETTES.get(index)
+        if cfg is None:
+            return
+        palette_cfg = cfg
+        win.setBackground(cfg["background"])
+        for i, item in enumerate(sprite_items):
+            item.setImage(colorize(fields[i], cfg["palette"]))
+
+    for i in PALETTES:
+        shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(str(i)), win)
+        shortcut.activated.connect(lambda i=i: apply_palette(i))
 
     ring_radius = 450
     boundary_x = width / 2 - 20
