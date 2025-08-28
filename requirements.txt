@@ -2,4 +2,3 @@ numpy
 matplotlib
 pyqtgraph
 PyQt5
-torch
