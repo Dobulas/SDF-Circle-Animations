@@ -65,7 +65,8 @@ def run() -> int:
     """Display the ring circle animation.
 
     Sprites hold a circular formation briefly before beginning their
-    rotation, emphasising the starting shape.
+    rotation, emphasising the starting shape. Random drift respects the
+    window's aspect ratio.
     """
 
     width, height = 1920, 1080
@@ -206,8 +207,15 @@ def run() -> int:
         shortcut.activated.connect(lambda i=i: apply_palette(i))
 
     ring_radius = 450
-    boundary_x = width / 2 - 20
-    boundary_y = height / 2 - 20
+    margin = 20
+    aspect_ratio = width / height
+    # Keep drift boundary proportional to the window aspect ratio
+    if width >= height:
+        boundary_y = height / 2 - margin
+        boundary_x = boundary_y * aspect_ratio
+    else:
+        boundary_x = width / 2 - margin
+        boundary_y = boundary_x / aspect_ratio
     controller = MovementController(
         sprite_count, ring_radius, boundary_x, boundary_y, start_delay=1.0
     )
