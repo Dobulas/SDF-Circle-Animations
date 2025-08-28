@@ -24,3 +24,4 @@ You can switch between movement modes while the window is active:
 * **C** - circular motion
 * **F** - figure-eight paths
 * **R** - faster drifting within the boundary
+* **1-4** - switch between predefined color palettes

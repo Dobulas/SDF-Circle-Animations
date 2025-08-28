@@ -9,7 +9,7 @@ from typing import Dict, List, Optional
 import numpy as np
 import pyqtgraph as pg
 from matplotlib.colors import to_rgba
-from pyqtgraph.Qt import QtGui, QtWidgets
+from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 
 from .movement import MovementController, MovementMode
 from .utils import create_sprite
@@ -158,6 +158,7 @@ def run() -> int:
 
     for i in PALETTES:
         shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(str(i)), win)
+        shortcut.setContext(QtCore.Qt.ApplicationShortcut)
         shortcut.activated.connect(lambda i=i: apply_palette(i))
         palette_shortcuts.append(shortcut)
 
