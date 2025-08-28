@@ -219,7 +219,12 @@ def run() -> int:
         boundary_x = window_width / 2 - margin
         boundary_y = boundary_x / aspect_ratio
     controller = MovementController(
-        sprite_count, ring_radius, boundary_x, boundary_y, start_delay=1.0
+        sprite_count,
+        ring_radius,
+        boundary_x,
+        boundary_y,
+        start_delay=1.0,
+        rose_k=5,
     )
     movement_mode = MovementMode.CIRCLE
 
@@ -274,6 +279,11 @@ def run() -> int:
     drift_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("R"), win)
     drift_shortcut.activated.connect(
         lambda: transition_to_mode(MovementMode.DRIFT, transition_duration)
+    )
+
+    rose_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("P"), win)
+    rose_shortcut.activated.connect(
+        lambda: transition_to_mode(MovementMode.ROSE, transition_duration)
     )
 
     def update() -> None:
