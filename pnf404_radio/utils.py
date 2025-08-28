@@ -8,7 +8,10 @@ from typing import Tuple
 import numpy as np
 import taichi as ti
 
-ti.init(arch=ti.metal if ti.metal.is_available() else ti.cpu, default_fp=ti.f32)
+try:
+    ti.init(arch=ti.metal, default_fp=ti.f32)
+except Exception:
+    ti.init(arch=ti.cpu, default_fp=ti.f32)
 
 
 def get_random_center(width: int, height: int, margin: int) -> Tuple[int, int]:
