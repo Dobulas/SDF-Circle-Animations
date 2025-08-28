@@ -6,6 +6,9 @@ from collections.abc import Sequence
 from typing import Tuple
 
 import numpy as np
+import taichi as ti
+
+ti.init(arch=ti.metal if ti.metal.is_available() else ti.cpu, default_fp=ti.f32)
 
 
 def get_random_center(width: int, height: int, margin: int) -> Tuple[int, int]:
@@ -37,14 +40,39 @@ def create_sprite(
     noise_scale: float,
     noise_intensity: float,
 ) -> np.ndarray:
-    """Create a layered signed distance field array with noise."""
-    y, x = np.meshgrid(np.arange(height), np.arange(width), indexing="ij")
-    combined_sdf = np.zeros((height, width))
-    for radius in radii:
-        sdf = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2) - radius
-        noise = generate_simple_noise(
-            width, height, scale=noise_scale, intensity=noise_intensity
-        )
-        sdf_with_noise = sdf + noise
-        combined_sdf = np.minimum(combined_sdf, sdf_with_noise)
-    return combined_sdf
+    """Create a layered signed distance field array with noise on the GPU."""
+
+    radii_arr = np.array(radii, dtype=np.float32)
+    result = np.zeros((height, width), dtype=np.float32)
+
+    _sdf_kernel(
+        center_x,
+        center_y,
+        radii_arr,
+        noise_scale,
+        noise_intensity,
+        result,
+    )
+    return result
+
+
+@ti.kernel
+def _sdf_kernel(
+    center_x: int,
+    center_y: int,
+    radii: ti.types.ndarray(dtype=ti.f32, ndim=1),
+    scale: float,
+    intensity: float,
+    out: ti.types.ndarray(dtype=ti.f32, ndim=2),
+) -> None:
+    """Kernel to compute the signed distance field with simple noise."""
+
+    for i, j in out:
+        x = j - center_x
+        y = i - center_y
+        noise = ti.sin(j * scale) + ti.cos(i * scale)
+        min_sdf = 1e8
+        for k in range(radii.shape[0]):
+            sdf = ti.sqrt(x * x + y * y) - radii[k] + noise * intensity
+            min_sdf = ti.min(min_sdf, sdf)
+        out[i, j] = min_sdf
