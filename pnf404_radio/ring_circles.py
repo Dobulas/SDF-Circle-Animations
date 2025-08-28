@@ -124,7 +124,6 @@ def run() -> int:
 
     executor = ThreadPoolExecutor(max_workers=1)
     pending_palette: Optional[int] = None
-    palette_shortcuts: List[QtWidgets.QShortcut] = []
 
     def _compute_images(index: int) -> List[np.ndarray]:
         """Generate RGBA sprites for the palette at ``index``."""
@@ -159,7 +158,6 @@ def run() -> int:
     for i in PALETTES:
         shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(str(i)), win)
         shortcut.activated.connect(lambda i=i: apply_palette(i))
-        palette_shortcuts.append(shortcut)
 
     ring_radius = 450
     boundary_x = width / 2 - 20
