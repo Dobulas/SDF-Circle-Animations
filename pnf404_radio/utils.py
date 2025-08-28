@@ -6,8 +6,9 @@ from typing import Tuple, TYPE_CHECKING, Any
 import numpy as np
 import taichi as ti
 
+# Prefer running Taichi on a GPU when available, falling back to the CPU.
 try:
-    ti.init(arch=ti.metal, default_fp=ti.f32)
+    ti.init(arch=ti.gpu, default_fp=ti.f32)
 except Exception:
     ti.init(arch=ti.cpu, default_fp=ti.f32)
 

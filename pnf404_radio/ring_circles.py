@@ -85,6 +85,7 @@ def run() -> int:
 
     plot = win.addPlot()
     plot.setAspectLocked(True)
+    plot.setRange(xRange=(0, width), yRange=(0, height), padding=0)
     plot.hideAxis("bottom")
     plot.hideAxis("left")
 
