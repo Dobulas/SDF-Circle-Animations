@@ -1,26 +1,11 @@
 """Utility functions for PNF 404 Radio animations."""
 
+from __future__ import annotations
+
 from collections.abc import Sequence
-from typing import Tuple, TYPE_CHECKING, Any
+from typing import Tuple
 
 import numpy as np
-import taichi as ti
-
-# Prefer running Taichi on a GPU when available, falling back to the CPU.
-try:
-    ti.init(arch=ti.gpu, default_fp=ti.f32)
-except Exception:
-    ti.init(arch=ti.cpu, default_fp=ti.f32)
-
-# Type aliases to keep Pylance/pyright happy while giving Taichi the runtime types
-if TYPE_CHECKING:
-    F32 = float
-    Nd1F = Any
-    Nd2F = Any
-else:
-    F32 = ti.f32
-    Nd1F = ti.types.ndarray(dtype=ti.f32, ndim=1)
-    Nd2F = ti.types.ndarray(dtype=ti.f32, ndim=2)
 
 
 def get_random_center(width: int, height: int, margin: int) -> Tuple[int, int]:
@@ -52,39 +37,14 @@ def create_sprite(
     noise_scale: float,
     noise_intensity: float,
 ) -> np.ndarray:
-    """Create a layered signed distance field array with noise on the GPU."""
-
-    radii_arr = np.array(radii, dtype=np.float32)
-    result = np.zeros((height, width), dtype=np.float32)
-
-    _sdf_kernel(
-        center_x,
-        center_y,
-        radii_arr,
-        noise_scale,
-        noise_intensity,
-        result,
-    )
-    return result
-
-
-@ti.kernel
-def _sdf_kernel(
-    center_x: F32,
-    center_y: F32,
-    radii: Nd1F,
-    scale: F32,
-    intensity: F32,
-    out: Nd2F,
-):
-    """Kernel to compute the signed distance field with simple noise."""
-
-    for i, j in out:
-        x = j - center_x
-        y = i - center_y
-        noise = ti.sin(j * scale) + ti.cos(i * scale)
-        min_sdf = 1e8
-        for k in range(radii.shape[0]):
-            sdf = ti.sqrt(x * x + y * y) - radii[k] + noise * intensity
-            min_sdf = ti.min(min_sdf, sdf)
-        out[i, j] = min_sdf
+    """Create a layered signed distance field array with noise."""
+    y, x = np.meshgrid(np.arange(height), np.arange(width), indexing="ij")
+    combined_sdf = np.zeros((height, width))
+    for radius in radii:
+        sdf = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2) - radius
+        noise = generate_simple_noise(
+            width, height, scale=noise_scale, intensity=noise_intensity
+        )
+        sdf_with_noise = sdf + noise
+        combined_sdf = np.minimum(combined_sdf, sdf_with_noise)
+    return combined_sdf
