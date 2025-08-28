@@ -25,7 +25,7 @@ def run() -> int:
     radii = [100, 80, 60]
     noise_scale = 0.02
     noise_intensity = 5
-    sprite_count = 12
+    sprite_count = 13
 
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
     win = pg.GraphicsLayoutWidget(show=True, title="PNF 404 Radio - Ring Circles")
