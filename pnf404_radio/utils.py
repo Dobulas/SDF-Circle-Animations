@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Tuple
 
 import numpy as np
 
 
-def get_random_center(width: int, height: int, margin: int) -> Tuple[int, int]:
+def get_random_center(width: int, height: int, margin: int) -> tuple[int, int]:
     """Return a random ``(x, y)`` point within the given margins."""
     center_x = np.random.randint(margin, width - margin)
     center_y = np.random.randint(margin, height - margin)
@@ -36,8 +35,27 @@ def create_sprite(
     height: int,
     noise_scale: float,
     noise_intensity: float,
-) -> np.ndarray:
-    """Create a layered signed distance field array with noise."""
+) -> tuple[np.ndarray, tuple[int, int]]:
+    """Create a layered signed distance field array with noise.
+
+    Parameters
+    ----------
+    center_x, center_y:
+        Position of the sprite's centre within the returned array.
+    radii:
+        Radii for the concentric circles making up the sprite.
+    width, height:
+        Dimensions of the generated sprite. These may match the sprite's own
+        size instead of the full screen.
+    noise_scale, noise_intensity:
+        Parameters controlling the simple noise overlay.
+
+    Returns
+    -------
+    tuple[np.ndarray, tuple[int, int]]
+        The signed distance field and the centre point used to generate it.
+    """
+
     y, x = np.meshgrid(np.arange(height), np.arange(width), indexing="ij")
     combined_sdf = np.zeros((height, width))
     for radius in radii:
@@ -47,4 +65,4 @@ def create_sprite(
         )
         sdf_with_noise = sdf + noise
         combined_sdf = np.minimum(combined_sdf, sdf_with_noise)
-    return combined_sdf
+    return combined_sdf, (int(center_x), int(center_y))

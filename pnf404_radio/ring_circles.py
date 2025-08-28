@@ -69,16 +69,17 @@ def run() -> int:
     window's aspect ratio.
     """
 
-    width, height = 1920, 1080
-    center_x, center_y = width // 2, height // 2
+    window_width, window_height = 1920, 1080
     radii = [100, 80, 60]
     noise_scale = 0.02
     noise_intensity = 5
     sprite_count = 13
+    margin = 20
+    sprite_size = int(2 * max(radii) + margin)
 
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
     win = pg.GraphicsLayoutWidget(show=True, title="PNF 404 Radio - Ring Circles")
-    win.resize(width, height)
+    win.resize(window_width, window_height)
 
     palette_cfg = PALETTES[1]
     win.setBackground(palette_cfg["background"])
@@ -101,13 +102,14 @@ def run() -> int:
         return (colors_layered * 255).astype(np.uint8)
 
     fields: List[np.ndarray] = []
-    for _ in range(sprite_count):
-        layered_sdf = create_sprite(
-            center_x,
-            center_y,
+    centers = np.zeros((sprite_count, 2))
+    for i in range(sprite_count):
+        layered_sdf, center = create_sprite(
+            sprite_size // 2,
+            sprite_size // 2,
             radii,
-            width=width,
-            height=height,
+            width=sprite_size,
+            height=sprite_size,
             noise_scale=noise_scale,
             noise_intensity=noise_intensity,
         )
@@ -115,6 +117,7 @@ def run() -> int:
             layered_sdf.max() - layered_sdf.min()
         )
         fields.append(normalized_sdf)
+        centers[i] = center
 
     color_cache: Dict[int, List[np.ndarray]] = {idx: [] for idx in PALETTES}
     for idx, cfg in PALETTES.items():
@@ -207,14 +210,13 @@ def run() -> int:
         shortcut.activated.connect(lambda i=i: apply_palette(i))
 
     ring_radius = 450
-    margin = 20
-    aspect_ratio = width / height
+    aspect_ratio = window_width / window_height
     # Keep drift boundary proportional to the window aspect ratio
-    if width >= height:
-        boundary_y = height / 2 - margin
+    if window_width >= window_height:
+        boundary_y = window_height / 2 - margin
         boundary_x = boundary_y * aspect_ratio
     else:
-        boundary_x = width / 2 - margin
+        boundary_x = window_width / 2 - margin
         boundary_y = boundary_x / aspect_ratio
     controller = MovementController(
         sprite_count, ring_radius, boundary_x, boundary_y, start_delay=1.0
@@ -223,7 +225,7 @@ def run() -> int:
 
     for i, item in enumerate(sprite_items):
         x, y = controller.positions[i]
-        item.setPos(x - width / 2, y - height / 2)
+        item.setPos(x - centers[i, 0], y - centers[i, 1])
 
     transition_active = False
     transition_frame = 0
@@ -243,8 +245,8 @@ def run() -> int:
         for i, item in enumerate(sprite_items):
             pos = item.pos()
             start_positions[i] = (
-                pos.x() + width / 2,
-                pos.y() + height / 2,
+                pos.x() + centers[i, 0],
+                pos.y() + centers[i, 1],
             )
             start_scales[i] = item.scale()
 
@@ -294,8 +296,8 @@ def run() -> int:
             interp_scale = (1 - alpha) * start_scales + alpha * target_scale
             for i, (item_a, item_b) in enumerate(zip(sprite_items, transition_items)):
                 x, y = interp_pos[i]
-                item_a.setPos(x - width / 2, y - height / 2)
-                item_b.setPos(x - width / 2, y - height / 2)
+                item_a.setPos(x - centers[i, 0], y - centers[i, 1])
+                item_b.setPos(x - centers[i, 0], y - centers[i, 1])
                 item_a.setScale(interp_scale[i])
                 item_b.setScale(interp_scale[i])
             if transition_frame >= transition_frames:
@@ -306,8 +308,8 @@ def run() -> int:
             has_scale = "scale" in extras
             for i, (item_a, item_b) in enumerate(zip(sprite_items, transition_items)):
                 x, y = controller.positions[i]
-                item_a.setPos(x - width / 2, y - height / 2)
-                item_b.setPos(x - width / 2, y - height / 2)
+                item_a.setPos(x - centers[i, 0], y - centers[i, 1])
+                item_b.setPos(x - centers[i, 0], y - centers[i, 1])
                 scale = extras["scale"][i] if has_scale else default_scale
                 item_a.setScale(scale)
                 item_b.setScale(scale)
