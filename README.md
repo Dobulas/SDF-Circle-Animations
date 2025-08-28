@@ -18,9 +18,8 @@ Run the ring circle animation:
 python run.py
 ```
 
-Add ``--gpu`` to enable GPU acceleration with
-[CuPy](https://cupy.dev/) or [PyTorch](https://pytorch.org/) when available.
-PyTorch supports Apple's Metal backend on macOS.
+Add ``--gpu`` to enable GPU acceleration with [CuPy](https://cupy.dev/) if
+installed:
 
 ```bash
 python run.py --gpu
