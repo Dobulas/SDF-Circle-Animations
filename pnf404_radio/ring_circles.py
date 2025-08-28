@@ -218,6 +218,17 @@ def run() -> int:
     else:
         boundary_x = window_width / 2 - margin
         boundary_y = boundary_x / aspect_ratio
+
+    border = QtWidgets.QGraphicsRectItem(
+        -boundary_x,
+        -boundary_y,
+        2 * boundary_x,
+        2 * boundary_y,
+    )
+    border.setPen(pg.mkPen(color="black", width=1))
+    border.setZValue(sprite_count * 2 + 2)
+    plot.addItem(border)
+
     controller = MovementController(
         sprite_count,
         ring_radius,
