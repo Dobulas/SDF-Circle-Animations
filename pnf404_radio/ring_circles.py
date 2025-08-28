@@ -75,7 +75,8 @@ def run() -> int:
     noise_intensity = 5
     sprite_count = 15
     margin = 20
-    sprite_size = int(2 * max(radii) + margin)
+    max_radius = max(radii)
+    sprite_size = int(2 * max_radius + margin)
 
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
     win = pg.GraphicsLayoutWidget(show=True, title="PNF 404 Radio - Ring Circles")
@@ -213,17 +214,17 @@ def run() -> int:
     aspect_ratio = window_width / window_height
     # Keep drift boundary proportional to the window aspect ratio
     if window_width >= window_height:
-        boundary_y = window_height / 2 - margin
+        boundary_y = window_height / 2 - margin - max_radius
         boundary_x = boundary_y * aspect_ratio
     else:
-        boundary_x = window_width / 2 - margin
+        boundary_x = window_width / 2 - margin - max_radius
         boundary_y = boundary_x / aspect_ratio
 
     border = QtWidgets.QGraphicsRectItem(
-        -boundary_x,
-        -boundary_y,
-        2 * boundary_x,
-        2 * boundary_y,
+        -boundary_x - max_radius,
+        -boundary_y - max_radius,
+        2 * (boundary_x + max_radius),
+        2 * (boundary_y + max_radius),
     )
     border.setPen(pg.mkPen(color="black", width=1))
     border.setZValue(sprite_count * 2 + 2)
