@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from types import ModuleType
 from typing import Tuple
 
 import numpy as np
@@ -20,10 +21,12 @@ def generate_simple_noise(
     height: int,
     scale: float = 0.05,
     intensity: float = 10,
+    xp: ModuleType = np,
 ) -> np.ndarray:
-    """Generate sine-cosine-based noise."""
-    y, x = np.meshgrid(np.arange(height), np.arange(width), indexing="ij")
-    noise = np.sin(x * scale) + np.cos(y * scale)
+    """Generate sine-cosine-based noise using ``xp`` (NumPy or CuPy)."""
+
+    y, x = xp.meshgrid(xp.arange(height), xp.arange(width), indexing="ij")
+    noise = xp.sin(x * scale) + xp.cos(y * scale)
     return noise * intensity
 
 
@@ -36,15 +39,21 @@ def create_sprite(
     height: int,
     noise_scale: float,
     noise_intensity: float,
+    xp: ModuleType = np,
 ) -> np.ndarray:
     """Create a layered signed distance field array with noise."""
-    y, x = np.meshgrid(np.arange(height), np.arange(width), indexing="ij")
-    combined_sdf = np.zeros((height, width))
+
+    y, x = xp.meshgrid(xp.arange(height), xp.arange(width), indexing="ij")
+    combined_sdf = xp.zeros((height, width))
     for radius in radii:
-        sdf = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2) - radius
+        sdf = xp.sqrt((x - center_x) ** 2 + (y - center_y) ** 2) - radius
         noise = generate_simple_noise(
-            width, height, scale=noise_scale, intensity=noise_intensity
+            width,
+            height,
+            scale=noise_scale,
+            intensity=noise_intensity,
+            xp=xp,
         )
         sdf_with_noise = sdf + noise
-        combined_sdf = np.minimum(combined_sdf, sdf_with_noise)
+        combined_sdf = xp.minimum(combined_sdf, sdf_with_noise)
     return combined_sdf
