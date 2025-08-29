@@ -260,7 +260,7 @@ def run() -> int:
     current_speed = 1.0
     target_speed = 1.0
     speed_change_rate = 1.0  # speed units per second
-    speed_levels = [1.0, 2.0, 3.0]
+    speed_levels = [.5, 1.0, 2.0, 3.0]
     speed_index = 0
 
     def transition_to_mode(new_mode: MovementMode, duration: float) -> None:
