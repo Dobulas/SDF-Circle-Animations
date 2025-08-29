@@ -257,6 +257,12 @@ def run() -> int:
     pending_mode = movement_mode
     fixed_dt = 1.0 / 60.0  # assume a steady 60 FPS frame time
 
+    current_speed = 1.0
+    target_speed = 1.0
+    speed_change_rate = 1.0  # speed units per second
+    speed_levels = [1.0, 2.0, 3.0]
+    speed_index = 0
+
     def transition_to_mode(new_mode: MovementMode, duration: float) -> None:
         """Interpolate sprites toward ``new_mode`` over ``duration`` frames."""
 
@@ -302,18 +308,45 @@ def run() -> int:
         lambda: transition_to_mode(MovementMode.ROSE, transition_duration)
     )
 
+    def apply_speed(index: int) -> None:
+        """Update the target speed to the multiplier at ``index``."""
+
+        nonlocal speed_index, target_speed
+        speed_index = index
+        target_speed = speed_levels[speed_index]
+
+    def change_speed(delta: int) -> None:
+        """Move to another speed level by ``delta`` steps."""
+
+        new_index = max(0, min(len(speed_levels) - 1, speed_index + delta))
+        apply_speed(new_index)
+
+    up_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("Up"), win)
+    up_shortcut.activated.connect(lambda: change_speed(1))
+    down_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("Down"), win)
+    down_shortcut.activated.connect(lambda: change_speed(-1))
+
     def update() -> None:
         """Advance the animation by one frame."""
 
         nonlocal transition_active, transition_frame, movement_mode
-        nonlocal color_transition_frame
+        nonlocal color_transition_frame, current_speed
 
-        dt = fixed_dt
+        if current_speed < target_speed:
+            current_speed = min(
+                target_speed, current_speed + speed_change_rate * fixed_dt
+            )
+        elif current_speed > target_speed:
+            current_speed = max(
+                target_speed, current_speed - speed_change_rate * fixed_dt
+            )
+
+        dt = fixed_dt * current_speed
         default_scale = 1.0
 
         if transition_active:
             extras = controller.update(pending_mode, dt)
-            transition_frame += 1
+            transition_frame += current_speed
             alpha = transition_frame / transition_frames
             alpha = 0.5 - 0.5 * np.cos(np.pi * alpha)
             target_pos = controller.positions
@@ -341,7 +374,7 @@ def run() -> int:
                 item_b.setScale(scale)
 
         if color_transition_active:
-            color_transition_frame += 1
+            color_transition_frame += current_speed
             alpha = color_transition_frame / color_transition_frames
             alpha = 0.5 - 0.5 * np.cos(np.pi * alpha)
             for i in range(sprite_count):
