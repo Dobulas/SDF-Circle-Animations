@@ -394,13 +394,19 @@ def run() -> int:
         else:
             extras = controller.update(movement_mode, dt)
             has_scale = "scale" in extras
-            for i, (item_a, item_b) in enumerate(zip(sprite_items, transition_items)):
+            scales = extras["scale"] if has_scale else None
+            update_transitions = color_transition_active or crazy_mode
+            for i, item_a in enumerate(sprite_items):
                 x, y = controller.positions[i]
-                item_a.setPos(x - centers[i, 0], y - centers[i, 1])
-                item_b.setPos(x - centers[i, 0], y - centers[i, 1])
-                scale = extras["scale"][i] if has_scale else default_scale
+                pos_x = x - centers[i, 0]
+                pos_y = y - centers[i, 1]
+                scale = scales[i] if has_scale else default_scale
+                item_a.setPos(pos_x, pos_y)
                 item_a.setScale(scale)
-                item_b.setScale(scale)
+                if update_transitions:
+                    item_b = transition_items[i]
+                    item_b.setPos(pos_x, pos_y)
+                    item_b.setScale(scale)
 
         if color_transition_active and not crazy_mode:
             color_transition_frame += current_speed
