@@ -453,16 +453,25 @@ def run() -> int:
     return app.exec_()
 
 
-def render_headless_mp4() -> None:
-    """Render the animation to an MP4 using the interactive sprite logic."""
+def render_headless_mp4(
+    duration: float = 5.0,
+    output: str = "ring_circles.mp4",
+    fps: int = 60,
+) -> None:
+    """Render the animation to an MP4 using ``ffmpeg``.
 
-    import matplotlib.pyplot as plt
-    from matplotlib.animation import FFMpegWriter
+    Parameters
+    ----------
+    duration:
+        Length of the video in seconds.
+    output:
+        Path to the output MP4 file.
+    fps:
+        Frames per second for the generated video.
+    """
 
-    duration_str = input("Video duration in seconds (default 5): ").strip()
-    duration = float(duration_str) if duration_str else 5.0
+    import subprocess
 
-    fps = 60
     total_frames = int(duration * fps)
 
     window_width, window_height = 1920, 1080
@@ -519,12 +528,29 @@ def render_headless_mp4() -> None:
     bg_rgba = (np.array(to_rgba(palette_cfg["background"])) * 255).astype(np.uint8)
     frame_bg = np.tile(bg_rgba, (window_height, window_width, 1))
 
-    fig, ax = plt.subplots(figsize=(window_width / 100, window_height / 100), dpi=100)
-    ax.axis("off")
-    image_artist = ax.imshow(frame_bg[..., :3])
-
-    writer = FFMpegWriter(fps=fps)
-    with writer.saving(fig, "ring_circles.mp4", dpi=100):
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-f",
+        "rawvideo",
+        "-vcodec",
+        "rawvideo",
+        "-pix_fmt",
+        "rgb24",
+        "-s",
+        f"{window_width}x{window_height}",
+        "-r",
+        str(fps),
+        "-i",
+        "-",
+        "-an",
+        "-vcodec",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        output,
+    ]
+    with subprocess.Popen(cmd, stdin=subprocess.PIPE) as proc:
         for _ in range(total_frames):
             controller.update(MovementMode.CIRCLE, 1 / fps)
             frame = frame_bg.copy()
@@ -543,9 +569,9 @@ def render_headless_mp4() -> None:
                 sub_frame[..., :3] = (1 - alpha) * sub_frame[..., :3] + alpha * sub_img[
                     ..., :3
                 ]
-            image_artist.set_data(frame[..., :3])
-            writer.grab_frame()
-    plt.close(fig)
+            proc.stdin.write(frame[..., :3].tobytes())
+        proc.stdin.close()
+        proc.wait()
 
 
 if __name__ == "__main__":
