@@ -468,12 +468,27 @@ def render_headless_mp4() -> None:
     max_radius = max(radii)
     sprite_size = int(2 * max_radius + margin)
 
-    palette_cfg = PALETTES[4]
+    palette_cfg = PALETTES[1]
+
+    ring_radius = 450
+    aspect_ratio = window_width / window_height
+    if window_width >= window_height:
+        border_half_height = window_height / 2 - margin
+        border_half_width = border_half_height * aspect_ratio
+    else:
+        border_half_width = window_width / 2 - margin
+        border_half_height = border_half_width / aspect_ratio
+
+    boundary_x = border_half_width - max_radius
+    boundary_y = border_half_height - max_radius
+
     controller = MovementController(
         sprite_count=sprite_count,
-        ring_radius=200,
-        boundary_x=window_width / 2,
-        boundary_y=window_height / 2,
+        ring_radius=ring_radius,
+        boundary_x=boundary_x,
+        boundary_y=boundary_y,
+        start_delay=1.0,
+        rose_k=5,
     )
 
     fields: List[np.ndarray] = []
