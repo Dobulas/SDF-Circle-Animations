@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+import random
 
 import numpy as np
+from matplotlib.colors import to_rgba
 
 
 def get_random_center(width: int, height: int, margin: int) -> tuple[int, int]:
@@ -24,6 +26,25 @@ def generate_simple_noise(
     y, x = np.meshgrid(np.arange(height), np.arange(width), indexing="ij")
     noise = np.sin(x * scale) + np.cos(y * scale)
     return noise * intensity
+
+
+def colorize_with_color(field: np.ndarray, color: str) -> np.ndarray:
+    """Return an RGBA sprite for ``field`` using ``color``."""
+
+    r, g, b, _ = to_rgba(color)
+    colors_layered = np.zeros((*field.shape, 4))
+    colors_layered[..., 0] = r
+    colors_layered[..., 1] = g
+    colors_layered[..., 2] = b
+    alpha_layered = np.clip(1 - field**2, 0, 1)
+    colors_layered[..., 3] = alpha_layered
+    return (colors_layered * 255).astype(np.uint8)
+
+
+def colorize(field: np.ndarray, palette: Sequence[str]) -> np.ndarray:
+    """Return an RGBA sprite for ``field`` using a random ``palette`` color."""
+
+    return colorize_with_color(field, random.choice(palette))
 
 
 def create_sprite(

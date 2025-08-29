@@ -9,7 +9,7 @@ import numpy as np
 from matplotlib.colors import to_rgba
 
 from .movement import MovementController, MovementMode
-from .utils import create_sprite
+from .utils import colorize, colorize_with_color, create_sprite
 
 PALETTES: Dict[int, Dict[str, List[str]]] = {
     1: {
@@ -90,23 +90,6 @@ def run() -> int:
     plot.setAspectLocked(True)
     plot.hideAxis("bottom")
     plot.hideAxis("left")
-
-    def colorize_with_color(field: np.ndarray, color: str) -> np.ndarray:
-        """Return an RGBA sprite for ``field`` using ``color``."""
-
-        r, g, b, _ = to_rgba(color)
-        colors_layered = np.zeros((*field.shape, 4))
-        colors_layered[..., 0] = r
-        colors_layered[..., 1] = g
-        colors_layered[..., 2] = b
-        alpha_layered = np.clip(1 - field**2, 0, 1)
-        colors_layered[..., 3] = alpha_layered
-        return (colors_layered * 255).astype(np.uint8)
-
-    def colorize(field: np.ndarray, palette: List[str]) -> np.ndarray:
-        """Return an RGBA sprite for ``field`` using a random ``palette`` color."""
-
-        return colorize_with_color(field, random.choice(palette))
 
     fields: List[np.ndarray] = []
     centers = np.zeros((sprite_count, 2))
@@ -465,14 +448,10 @@ def run() -> int:
 
 
 def render_headless_mp4() -> None:
-    """Render the animation to an MP4 file without opening a window.
-
-    The user is prompted for the desired duration in seconds. The video uses
-    a grey palette and circular motion.
-    """
+    """Render the animation to an MP4 using the interactive sprite logic."""
 
     import matplotlib.pyplot as plt
-    from matplotlib.animation import FFMpegWriter, FuncAnimation
+    from matplotlib.animation import FFMpegWriter
 
     duration_str = input("Video duration in seconds (default 5): ").strip()
     duration = float(duration_str) if duration_str else 5.0
@@ -482,10 +461,14 @@ def render_headless_mp4() -> None:
 
     window_width, window_height = 1920, 1080
     radii = [70, 50, 30]
+    noise_scale = 0.02
+    noise_intensity = 5
     sprite_count = 15
-    palette_cfg = PALETTES[4]
-    colors = palette_cfg["palette"]
+    margin = 20
+    max_radius = max(radii)
+    sprite_size = int(2 * max_radius + margin)
 
+    palette_cfg = PALETTES[4]
     controller = MovementController(
         sprite_count=sprite_count,
         ring_radius=200,
@@ -493,34 +476,54 @@ def render_headless_mp4() -> None:
         boundary_y=window_height / 2,
     )
 
-    fig, ax = plt.subplots(figsize=(window_width / 100, window_height / 100), dpi=100)
-    ax.set_facecolor(palette_cfg["background"])
-    ax.set_aspect("equal")
-    ax.set_xlim(-window_width / 2, window_width / 2)
-    ax.set_ylim(-window_height / 2, window_height / 2)
-    ax.axis("off")
-
-    patches: List[plt.Circle] = []
+    fields: List[np.ndarray] = []
+    centers = np.zeros((sprite_count, 2))
     for i in range(sprite_count):
-        color = random.choice(colors)
-        circle = plt.Circle(
-            (controller.positions[i, 0], controller.positions[i, 1]),
-            radii[i % len(radii)],
-            color=color,
+        layered_sdf, center = create_sprite(
+            sprite_size // 2,
+            sprite_size // 2,
+            radii,
+            width=sprite_size,
+            height=sprite_size,
+            noise_scale=noise_scale,
+            noise_intensity=noise_intensity,
         )
-        ax.add_patch(circle)
-        patches.append(circle)
+        normalized_sdf = (layered_sdf - layered_sdf.min()) / (
+            layered_sdf.max() - layered_sdf.min()
+        )
+        fields.append(normalized_sdf)
+        centers[i] = center
 
-    def update(_frame: int) -> List[plt.Circle]:
-        controller.update(MovementMode.CIRCLE, 1 / fps)
-        for i, circle in enumerate(patches):
-            x, y = controller.positions[i]
-            circle.center = (x, y)
-        return patches
+    sprites = [colorize(field, palette_cfg["palette"]) for field in fields]
+    bg_rgba = (np.array(to_rgba(palette_cfg["background"])) * 255).astype(np.uint8)
+    frame_bg = np.tile(bg_rgba, (window_height, window_width, 1))
 
-    anim = FuncAnimation(fig, update, frames=total_frames, blit=True)
+    fig, ax = plt.subplots(figsize=(window_width / 100, window_height / 100), dpi=100)
+    ax.axis("off")
+    image_artist = ax.imshow(frame_bg[..., :3])
+
     writer = FFMpegWriter(fps=fps)
-    anim.save("ring_circles.mp4", writer=writer)
+    with writer.saving(fig, "ring_circles.mp4", dpi=100):
+        for _ in range(total_frames):
+            controller.update(MovementMode.CIRCLE, 1 / fps)
+            frame = frame_bg.copy()
+            for i, img in enumerate(sprites):
+                x, y = controller.positions[i]
+                x = int(window_width / 2 + x - centers[i, 0])
+                y = int(window_height / 2 - y - centers[i, 1])
+                h, w, _ = img.shape
+                x1, x2 = max(0, x), min(window_width, x + w)
+                y1, y2 = max(0, y), min(window_height, y + h)
+                if x1 >= x2 or y1 >= y2:
+                    continue
+                sub_frame = frame[y1:y2, x1:x2]
+                sub_img = img[y1 - y : y2 - y, x1 - x : x2 - x]
+                alpha = sub_img[..., 3:4] / 255.0
+                sub_frame[..., :3] = (1 - alpha) * sub_frame[..., :3] + alpha * sub_img[
+                    ..., :3
+                ]
+            image_artist.set_data(frame[..., :3])
+            writer.grab_frame()
     plt.close(fig)
 
 
