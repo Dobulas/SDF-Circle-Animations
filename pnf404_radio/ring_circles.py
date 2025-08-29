@@ -116,7 +116,7 @@ def run() -> int:
     win = pg.GraphicsLayoutWidget(show=True, title="PNF 404 Radio - Ring Circles")
     win.resize(window_width, window_height)
 
-    palette_cfg = PALETTES[1]
+    palette_cfg = PALETTES[2]
     win.setBackground(palette_cfg["background"])
 
     plot = win.addPlot()
@@ -157,13 +157,13 @@ def run() -> int:
     sprite_items = []
     transition_items = []
     for i in range(sprite_count):
-        base = pg.ImageItem(image=color_cache[1][i])
+        base = pg.ImageItem(image=color_cache[2][i])
         base.setOpts(axisOrder="row-major")
         base.setZValue(i * 2)
         plot.addItem(base)
         sprite_items.append(base)
 
-        overlay = pg.ImageItem(image=color_cache[1][i])
+        overlay = pg.ImageItem(image=color_cache[2][i])
         overlay.setOpts(axisOrder="row-major")
         overlay.setOpacity(0)
         overlay.setZValue(i * 2 + 1)
@@ -175,11 +175,11 @@ def run() -> int:
 
         return np.array(pg.mkColor(color).getRgb()[:3], dtype=float)
 
-    current_palette = 1
+    current_palette = 2
     color_transition_active = False
     color_transition_frame = 0
     color_transition_frames = 60
-    color_target_palette = 1
+    color_target_palette = 2
     pending_palettes: List[int] = []
     bg_start = hex_to_rgb_array(PALETTES[current_palette]["background"])
     bg_target = bg_start.copy()
@@ -567,7 +567,7 @@ def render_headless_mp4(
         color_cache[idx] = [colorize(field, cfg["palette"]) for field in fields]
         bg_cache[idx] = (np.array(to_rgba(cfg["background"])) * 255).astype(np.uint8)
 
-    current_palette = 1
+    current_palette = 2
     sprites = color_cache[current_palette]
     frame_bg = np.tile(bg_cache[current_palette], (window_height, window_width, 1))
 
