@@ -26,3 +26,4 @@ You can switch between movement modes while the window is active:
 * **R** - faster drifting within the boundary
 * **P** - rose-curve paths with configurable petal count
 * **Up / Down arrows** - increase or decrease animation speed (1×, 2×, 3×)
+* **Space** - toggle crazy mode with a gray backdrop and rapidly changing colors
