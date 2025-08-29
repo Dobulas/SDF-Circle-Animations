@@ -571,9 +571,56 @@ def render_headless_mp4(
     sprites = color_cache[current_palette]
     frame_bg = np.tile(bg_cache[current_palette], (window_height, window_width, 1))
 
+    # Palette transition state
+    palette_start = sprites
+    palette_target = sprites
+    bg_start = bg_cache[current_palette]
+    bg_target = bg_start
+    palette_transition_active = False
+    palette_transition_frame = 0
+    palette_transition_frames = int(1.0 * fps)
+
+    def start_palette_transition(target: int) -> None:
+        """Begin a cross-fade to ``target`` palette."""
+
+        nonlocal current_palette, palette_start, palette_target
+        nonlocal bg_start, bg_target, palette_transition_active
+        nonlocal palette_transition_frame
+        if target == current_palette:
+            return
+        palette_start = sprites
+        palette_target = color_cache[target]
+        bg_start = bg_cache[current_palette]
+        bg_target = bg_cache[target]
+        current_palette = target
+        palette_transition_frame = 0
+        palette_transition_active = True
+
     movement_mode = MovementMode.CIRCLE
+    transition_active = False
+    transition_frame = 0
+    transition_frames = int(1.5 * fps)
+    start_positions = controller.positions.copy()
+    pending_mode = movement_mode
+
+    def start_movement_transition(new_mode: MovementMode) -> None:
+        """Smoothly interpolate sprites into ``new_mode``."""
+
+        nonlocal transition_active, transition_frame, pending_mode
+        nonlocal start_positions
+        start_positions = controller.positions.copy()
+        positions, velocities = controller.get_start_state(new_mode)
+        controller.positions = positions
+        controller.velocities = velocities
+        pending_mode = new_mode
+        transition_frame = 0
+        transition_active = True
+
     speed_levels = [0.5, 1.0, 2.0, 3.0]
     speed_index = 1
+    current_speed = speed_levels[speed_index]
+    target_speed = current_speed
+    speed_change_rate = 1.0
 
     events = parse_timeline(timeline, fps) if timeline else []
     event_idx = 0
@@ -601,52 +648,99 @@ def render_headless_mp4(
         output,
     ]
     with subprocess.Popen(cmd, stdin=subprocess.PIPE) as proc:
+        fixed_dt = 1.0 / fps
         for frame_num in range(total_frames):
             while event_idx < len(events) and frame_num >= events[event_idx][0]:
                 commands = events[event_idx][1].replace(" ", "")
                 for ch in commands:
                     if ch == ">":
                         speed_index = min(len(speed_levels) - 1, speed_index + 1)
+                        target_speed = speed_levels[speed_index]
                     elif ch == "<":
                         speed_index = max(0, speed_index - 1)
+                        target_speed = speed_levels[speed_index]
                     elif ch in "1234":
-                        current_palette = int(ch)
-                        sprites = color_cache[current_palette]
-                        frame_bg = np.tile(
-                            bg_cache[current_palette], (window_height, window_width, 1)
-                        )
+                        start_palette_transition(int(ch))
                     elif ch in "RCFP":
-                        movement_mode = {
-                            "R": MovementMode.DRIFT,
-                            "C": MovementMode.CIRCLE,
-                            "F": MovementMode.FIGURE_EIGHT,
-                            "P": MovementMode.ROSE,
-                        }[ch]
-                        positions, velocities = controller.get_start_state(
-                            movement_mode
+                        start_movement_transition(
+                            {
+                                "R": MovementMode.DRIFT,
+                                "C": MovementMode.CIRCLE,
+                                "F": MovementMode.FIGURE_EIGHT,
+                                "P": MovementMode.ROSE,
+                            }[ch]
                         )
-                        controller.positions = positions
-                        controller.velocities = velocities
                 event_idx += 1
 
-            dt = speed_levels[speed_index] / fps
-            controller.update(movement_mode, dt)
-            frame = frame_bg.copy()
-            for i, img in enumerate(sprites):
-                x, y = controller.positions[i]
+            if current_speed < target_speed:
+                current_speed = min(
+                    target_speed, current_speed + speed_change_rate * fixed_dt
+                )
+            elif current_speed > target_speed:
+                current_speed = max(
+                    target_speed, current_speed - speed_change_rate * fixed_dt
+                )
+
+            dt = fixed_dt * current_speed
+            if transition_active:
+                controller.update(pending_mode, dt)
+                transition_frame += current_speed
+                alpha_t = transition_frame / transition_frames
+                alpha_t = 0.5 - 0.5 * np.cos(np.pi * alpha_t)
+                render_positions = (1 - alpha_t) * start_positions + alpha_t * (
+                    controller.positions
+                )
+                if transition_frame >= transition_frames:
+                    transition_active = False
+                    movement_mode = pending_mode
+            else:
+                controller.update(movement_mode, dt)
+                render_positions = controller.positions
+
+            if palette_transition_active:
+                palette_transition_frame += current_speed
+                alpha_p = palette_transition_frame / palette_transition_frames
+                alpha_p = 0.5 - 0.5 * np.cos(np.pi * alpha_p)
+                bg = (1 - alpha_p) * bg_start + alpha_p * bg_target
+                frame = np.tile(bg.astype(np.uint8), (window_height, window_width, 1))
+            else:
+                frame = frame_bg.copy()
+
+            for i in range(sprite_count):
+                x, y = render_positions[i]
                 x = int(window_width / 2 + x - centers[i, 0])
                 y = int(window_height / 2 - y - centers[i, 1])
-                h, w, _ = img.shape
+                h, w, _ = sprites[i].shape
                 x1, x2 = max(0, x), min(window_width, x + w)
                 y1, y2 = max(0, y), min(window_height, y + h)
                 if x1 >= x2 or y1 >= y2:
                     continue
                 sub_frame = frame[y1:y2, x1:x2]
-                sub_img = img[y1 - y : y2 - y, x1 - x : x2 - x]
-                alpha = sub_img[..., 3:4] / 255.0
-                sub_frame[..., :3] = (1 - alpha) * sub_frame[..., :3] + alpha * sub_img[
-                    ..., :3
-                ]
+                if palette_transition_active:
+                    for img, fade in (
+                        (palette_start[i], 1 - alpha_p),
+                        (palette_target[i], alpha_p),
+                    ):
+                        sub_img = img[y1 - y : y2 - y, x1 - x : x2 - x]
+                        alpha = (sub_img[..., 3:4] / 255.0) * fade
+                        sub_frame[..., :3] = (1 - alpha) * sub_frame[
+                            ..., :3
+                        ] + alpha * sub_img[..., :3]
+                else:
+                    sub_img = sprites[i][y1 - y : y2 - y, x1 - x : x2 - x]
+                    alpha = sub_img[..., 3:4] / 255.0
+                    sub_frame[..., :3] = (1 - alpha) * sub_frame[
+                        ..., :3
+                    ] + alpha * sub_img[..., :3]
+
+            if (
+                palette_transition_active
+                and palette_transition_frame >= palette_transition_frames
+            ):
+                palette_transition_active = False
+                sprites = palette_target
+                frame_bg = np.tile(bg_target, (window_height, window_width, 1))
+
             proc.stdin.write(frame[..., :3].tobytes())
         proc.stdin.close()
         proc.wait()
