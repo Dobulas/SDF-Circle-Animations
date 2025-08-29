@@ -212,19 +212,23 @@ def run() -> int:
 
     ring_radius = 450
     aspect_ratio = window_width / window_height
-    # Keep drift boundary proportional to the window aspect ratio
+    # Determine border size while preserving the window's aspect ratio
     if window_width >= window_height:
-        boundary_y = window_height / 2 - margin - max_radius
-        boundary_x = boundary_y * aspect_ratio
+        border_half_height = window_height / 2 - margin
+        border_half_width = border_half_height * aspect_ratio
     else:
-        boundary_x = window_width / 2 - margin - max_radius
-        boundary_y = boundary_x / aspect_ratio
+        border_half_width = window_width / 2 - margin
+        border_half_height = border_half_width / aspect_ratio
+
+    # Movement boundary is constrained inside the border to keep sprites visible
+    boundary_x = border_half_width - max_radius
+    boundary_y = border_half_height - max_radius
 
     border = QtWidgets.QGraphicsRectItem(
-        -boundary_x - max_radius,
-        -boundary_y - max_radius,
-        2 * (boundary_x + max_radius),
-        2 * (boundary_y + max_radius),
+        -border_half_width,
+        -border_half_height,
+        2 * border_half_width,
+        2 * border_half_height,
     )
     border.setPen(pg.mkPen(color="black", width=1))
     border.setZValue(sprite_count * 2 + 2)
