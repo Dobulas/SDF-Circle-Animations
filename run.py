@@ -7,6 +7,21 @@ import argparse
 from pnf404_radio import ring_circles
 
 
+def parse_duration(value: str) -> float:
+    """Return seconds represented by ``value``.
+
+    ``value`` may be a plain number of seconds or an ``MM:SS`` string.
+    """
+
+    try:
+        if ":" in value:
+            minutes_str, seconds_str = value.split(":")
+            return int(minutes_str) * 60 + float(seconds_str)
+        return float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"Invalid duration '{value}'") from exc
+
+
 def main() -> None:
     """Run the ring circles animation or render it to an MP4 file."""
 
@@ -18,9 +33,12 @@ def main() -> None:
     )
     parser.add_argument(
         "--duration",
-        type=float,
+        type=parse_duration,
         default=5.0,
-        help=("Duration of the output video in seconds " "(only used with --render)."),
+        help=(
+            "Duration of the output video in seconds or MM:SS "
+            "(only used with --render)."
+        ),
     )
     parser.add_argument(
         "--output",
@@ -28,9 +46,22 @@ def main() -> None:
         default="ring_circles.mp4",
         help=("Filename for the rendered MP4 (only used with --render)."),
     )
+    parser.add_argument(
+        "--timeline",
+        type=str,
+        default=None,
+        help=(
+            "Comma-separated list of timestamped commands for rendering, "
+            "e.g. '0:00 2R, 1:47 3'."
+        ),
+    )
     args = parser.parse_args()
     if args.render:
-        ring_circles.render_headless_mp4(duration=args.duration, output=args.output)
+        ring_circles.render_headless_mp4(
+            duration=args.duration,
+            output=args.output,
+            timeline=args.timeline,
+        )
     else:
         ring_circles.run()
 

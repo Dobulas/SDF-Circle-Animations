@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import random
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import numpy as np
 from matplotlib.colors import to_rgba
@@ -57,6 +57,39 @@ PALETTES: Dict[int, Dict[str, List[str]]] = {
         ],
     },
 }
+
+
+def parse_timeline(spec: str, fps: int) -> List[Tuple[int, str]]:
+    """Parse a timeline specification into frame-scheduled commands.
+
+    Parameters
+    ----------
+    spec:
+        Comma-separated string where each entry is ``MM:SS COMMANDS``.
+    fps:
+        Frames per second of the rendered video. Timestamps are converted to
+        frame indices using this value.
+
+    Returns
+    -------
+    list of tuple
+        A sorted list of ``(frame, commands)`` pairs.
+    """
+
+    events: List[Tuple[int, str]] = []
+    for part in spec.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        time_part, *cmd_part = part.split()
+        if not cmd_part:
+            raise ValueError(f"No commands provided for '{time_part}'")
+        minutes_str, seconds_str = time_part.split(":")
+        total_seconds = int(minutes_str) * 60 + int(seconds_str)
+        frame = int(total_seconds * fps)
+        events.append((frame, cmd_part[0]))
+    events.sort(key=lambda e: e[0])
+    return events
 
 
 def run() -> int:
@@ -457,6 +490,7 @@ def render_headless_mp4(
     duration: float = 5.0,
     output: str = "ring_circles.mp4",
     fps: int = 60,
+    timeline: str | None = None,
 ) -> None:
     """Render the animation to an MP4 using ``ffmpeg``.
 
@@ -468,6 +502,11 @@ def render_headless_mp4(
         Path to the output MP4 file.
     fps:
         Frames per second for the generated video.
+    timeline:
+        Optional comma-separated timeline of timestamped commands. Each entry
+        should be formatted as ``MM:SS COMMANDS`` where ``COMMANDS`` may include
+        palette numbers (1-4), movement letters (R, C, F, P) and ``>``/``<`` for
+        speed changes.
     """
 
     import subprocess
@@ -482,8 +521,6 @@ def render_headless_mp4(
     margin = 20
     max_radius = max(radii)
     sprite_size = int(2 * max_radius + margin)
-
-    palette_cfg = PALETTES[1]
 
     ring_radius = 450
     aspect_ratio = window_width / window_height
@@ -524,9 +561,22 @@ def render_headless_mp4(
         fields.append(normalized_sdf)
         centers[i] = center
 
-    sprites = [colorize(field, palette_cfg["palette"]) for field in fields]
-    bg_rgba = (np.array(to_rgba(palette_cfg["background"])) * 255).astype(np.uint8)
-    frame_bg = np.tile(bg_rgba, (window_height, window_width, 1))
+    color_cache: Dict[int, List[np.ndarray]] = {}
+    bg_cache: Dict[int, np.ndarray] = {}
+    for idx, cfg in PALETTES.items():
+        color_cache[idx] = [colorize(field, cfg["palette"]) for field in fields]
+        bg_cache[idx] = (np.array(to_rgba(cfg["background"])) * 255).astype(np.uint8)
+
+    current_palette = 1
+    sprites = color_cache[current_palette]
+    frame_bg = np.tile(bg_cache[current_palette], (window_height, window_width, 1))
+
+    movement_mode = MovementMode.CIRCLE
+    speed_levels = [0.5, 1.0, 2.0, 3.0]
+    speed_index = 1
+
+    events = parse_timeline(timeline, fps) if timeline else []
+    event_idx = 0
 
     cmd = [
         "ffmpeg",
@@ -551,8 +601,36 @@ def render_headless_mp4(
         output,
     ]
     with subprocess.Popen(cmd, stdin=subprocess.PIPE) as proc:
-        for _ in range(total_frames):
-            controller.update(MovementMode.CIRCLE, 1 / fps)
+        for frame_num in range(total_frames):
+            while event_idx < len(events) and frame_num >= events[event_idx][0]:
+                commands = events[event_idx][1].replace(" ", "")
+                for ch in commands:
+                    if ch == ">":
+                        speed_index = min(len(speed_levels) - 1, speed_index + 1)
+                    elif ch == "<":
+                        speed_index = max(0, speed_index - 1)
+                    elif ch in "1234":
+                        current_palette = int(ch)
+                        sprites = color_cache[current_palette]
+                        frame_bg = np.tile(
+                            bg_cache[current_palette], (window_height, window_width, 1)
+                        )
+                    elif ch in "RCFP":
+                        movement_mode = {
+                            "R": MovementMode.DRIFT,
+                            "C": MovementMode.CIRCLE,
+                            "F": MovementMode.FIGURE_EIGHT,
+                            "P": MovementMode.ROSE,
+                        }[ch]
+                        positions, velocities = controller.get_start_state(
+                            movement_mode
+                        )
+                        controller.positions = positions
+                        controller.velocities = velocities
+                event_idx += 1
+
+            dt = speed_levels[speed_index] / fps
+            controller.update(movement_mode, dt)
             frame = frame_bg.copy()
             for i, img in enumerate(sprites):
                 x, y = controller.positions[i]

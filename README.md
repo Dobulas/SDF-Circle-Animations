@@ -27,3 +27,17 @@ You can switch between movement modes while the window is active:
 * **P** - rose-curve paths with configurable petal count
 * **Up / Down arrows** - increase or decrease animation speed (1×, 2×, 3×)
 * **Space** - toggle crazy mode with a gray backdrop and rapidly changing colors
+
+To render a headless MP4, use the ``--render`` flag. You can optionally supply a
+comma-separated timeline of timestamped commands that change palette, movement,
+or speed while rendering. The duration accepts either seconds or ``MM:SS``
+notation:
+
+```bash
+python run.py --render --duration 0:10 --output demo.mp4 --timeline "0:00 2R, 1:47 3, 1:59 F"
+```
+
+Each timeline entry uses ``MM:SS`` followed by commands. Palette numbers ``1-4``
+switch colour schemes, letters ``R``, ``C``, ``F`` and ``P`` change movement
+modes, and ``>``/``<`` simulate up/down arrow presses to alter speed.
+
