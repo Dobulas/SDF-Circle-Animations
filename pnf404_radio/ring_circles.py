@@ -6,9 +6,7 @@ import random
 from typing import Dict, List
 
 import numpy as np
-import pyqtgraph as pg
 from matplotlib.colors import to_rgba
-from pyqtgraph.Qt import QtGui, QtWidgets
 
 from .movement import MovementController, MovementMode
 from .utils import create_sprite
@@ -68,6 +66,9 @@ def run() -> int:
     rotation, emphasising the starting shape. Random drift respects the
     window's aspect ratio.
     """
+
+    import pyqtgraph as pg
+    from pyqtgraph.Qt import QtGui, QtWidgets
 
     window_width, window_height = 1920, 1080
     radii = [70, 50, 30]
@@ -461,6 +462,66 @@ def run() -> int:
     timer.start(16)  # ~60 FPS
 
     return app.exec_()
+
+
+def render_headless_mp4() -> None:
+    """Render the animation to an MP4 file without opening a window.
+
+    The user is prompted for the desired duration in seconds. The video uses
+    a grey palette and circular motion.
+    """
+
+    import matplotlib.pyplot as plt
+    from matplotlib.animation import FFMpegWriter, FuncAnimation
+
+    duration_str = input("Video duration in seconds (default 5): ").strip()
+    duration = float(duration_str) if duration_str else 5.0
+
+    fps = 60
+    total_frames = int(duration * fps)
+
+    window_width, window_height = 1920, 1080
+    radii = [70, 50, 30]
+    sprite_count = 15
+    palette_cfg = PALETTES[4]
+    colors = palette_cfg["palette"]
+
+    controller = MovementController(
+        sprite_count=sprite_count,
+        ring_radius=200,
+        boundary_x=window_width / 2,
+        boundary_y=window_height / 2,
+    )
+
+    fig, ax = plt.subplots(figsize=(window_width / 100, window_height / 100), dpi=100)
+    ax.set_facecolor(palette_cfg["background"])
+    ax.set_aspect("equal")
+    ax.set_xlim(-window_width / 2, window_width / 2)
+    ax.set_ylim(-window_height / 2, window_height / 2)
+    ax.axis("off")
+
+    patches: List[plt.Circle] = []
+    for i in range(sprite_count):
+        color = random.choice(colors)
+        circle = plt.Circle(
+            (controller.positions[i, 0], controller.positions[i, 1]),
+            radii[i % len(radii)],
+            color=color,
+        )
+        ax.add_patch(circle)
+        patches.append(circle)
+
+    def update(_frame: int) -> List[plt.Circle]:
+        controller.update(MovementMode.CIRCLE, 1 / fps)
+        for i, circle in enumerate(patches):
+            x, y = controller.positions[i]
+            circle.center = (x, y)
+        return patches
+
+    anim = FuncAnimation(fig, update, frames=total_frames, blit=True)
+    writer = FFMpegWriter(fps=fps)
+    anim.save("ring_circles.mp4", writer=writer)
+    plt.close(fig)
 
 
 if __name__ == "__main__":
