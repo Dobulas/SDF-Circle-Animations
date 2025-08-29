@@ -167,7 +167,12 @@ def run() -> int:
     bg_start = hex_to_rgb_array(PALETTES[current_palette]["background"])
     bg_target = bg_start.copy()
     crazy_mode = False
-    crazy_frame: float = 0.0
+    crazy_progress = np.zeros(sprite_count)
+    crazy_delay = np.zeros(sprite_count)
+    crazy_active = np.zeros(sprite_count, dtype=bool)
+    crazy_next_images: List[np.ndarray] = [
+        crazy_cache[i][0] for i in range(sprite_count)
+    ]
 
     def finish_color_transition() -> None:
         """Finalize any active color transition."""
@@ -227,12 +232,14 @@ def run() -> int:
     def toggle_crazy_mode() -> None:
         """Toggle crazy mode where sprites randomly change color."""
 
-        nonlocal crazy_mode, pending_palettes, crazy_frame
+        nonlocal crazy_mode, pending_palettes
         finish_color_transition()
         pending_palettes = []
         crazy_mode = not crazy_mode
-        crazy_frame = 0.0
+        crazy_progress[:] = 0
+        crazy_active[:] = False
         if crazy_mode:
+            crazy_delay[:] = np.random.uniform(0, color_transition_frames, sprite_count)
             win.setBackground(PALETTES[4]["background"])
             for i in range(sprite_count):
                 sprite_items[i].setImage(
@@ -368,7 +375,7 @@ def run() -> int:
         """Advance the animation by one frame."""
 
         nonlocal transition_active, transition_frame, movement_mode
-        nonlocal color_transition_frame, current_speed, crazy_frame
+        nonlocal color_transition_frame, current_speed
 
         if current_speed < target_speed:
             current_speed = min(
@@ -425,12 +432,29 @@ def run() -> int:
                 trigger_next_palette_transition()
 
         if crazy_mode:
-            crazy_frame += current_speed
-            if crazy_frame >= color_transition_frames:
-                crazy_frame = 0.0
-                for i in range(sprite_count):
-                    idx = random.randrange(len(crazy_colors))
-                    sprite_items[i].setImage(crazy_cache[i][idx])
+            for i in range(sprite_count):
+                if crazy_active[i]:
+                    crazy_progress[i] += current_speed
+                    alpha = crazy_progress[i] / color_transition_frames
+                    alpha = 0.5 - 0.5 * np.cos(np.pi * alpha)
+                    sprite_items[i].setOpacity(1 - alpha)
+                    transition_items[i].setOpacity(alpha)
+                    if crazy_progress[i] >= color_transition_frames:
+                        sprite_items[i].setImage(crazy_next_images[i])
+                        sprite_items[i].setOpacity(1)
+                        transition_items[i].setOpacity(0)
+                        crazy_active[i] = False
+                        crazy_progress[i] = 0
+                        crazy_delay[i] = random.uniform(0, color_transition_frames)
+                else:
+                    crazy_progress[i] += current_speed
+                    if crazy_progress[i] >= crazy_delay[i]:
+                        crazy_active[i] = True
+                        crazy_progress[i] = 0
+                        crazy_next_images[i] = crazy_cache[i][
+                            random.randrange(len(crazy_colors))
+                        ]
+                        transition_items[i].setImage(crazy_next_images[i])
 
     timer = pg.QtCore.QTimer()
     timer.timeout.connect(update)
