@@ -90,10 +90,10 @@ def run() -> int:
     plot.hideAxis("bottom")
     plot.hideAxis("left")
 
-    def colorize(field: np.ndarray, palette: List[str]) -> np.ndarray:
-        """Return an RGBA sprite for ``field`` using a random ``palette`` color."""
+    def colorize_with_color(field: np.ndarray, color: str) -> np.ndarray:
+        """Return an RGBA sprite for ``field`` using ``color``."""
 
-        r, g, b, _ = to_rgba(random.choice(palette))
+        r, g, b, _ = to_rgba(color)
         colors_layered = np.zeros((*field.shape, 4))
         colors_layered[..., 0] = r
         colors_layered[..., 1] = g
@@ -101,6 +101,11 @@ def run() -> int:
         alpha_layered = np.clip(1 - field**2, 0, 1)
         colors_layered[..., 3] = alpha_layered
         return (colors_layered * 255).astype(np.uint8)
+
+    def colorize(field: np.ndarray, palette: List[str]) -> np.ndarray:
+        """Return an RGBA sprite for ``field`` using a random ``palette`` color."""
+
+        return colorize_with_color(field, random.choice(palette))
 
     fields: List[np.ndarray] = []
     centers = np.zeros((sprite_count, 2))
@@ -124,6 +129,13 @@ def run() -> int:
     for idx, cfg in PALETTES.items():
         for field in fields:
             color_cache[idx].append(colorize(field, cfg["palette"]))
+
+    crazy_colors = [color for cfg in PALETTES.values() for color in cfg["palette"]]
+    crazy_cache: List[List[np.ndarray]] = []
+    for field in fields:
+        crazy_cache.append(
+            [colorize_with_color(field, color) for color in crazy_colors]
+        )
 
     sprite_items = []
     transition_items = []
@@ -154,6 +166,7 @@ def run() -> int:
     pending_palettes: List[int] = []
     bg_start = hex_to_rgb_array(PALETTES[current_palette]["background"])
     bg_target = bg_start.copy()
+    crazy_mode = False
 
     def finish_color_transition() -> None:
         """Finalize any active color transition."""
@@ -202,13 +215,36 @@ def run() -> int:
     def apply_palette(index: int) -> None:
         """Start a palette change sequence for ``index``."""
 
-        if index not in PALETTES:
+        if crazy_mode or index not in PALETTES:
             return
         start_palette_transition(index)
 
     for i in PALETTES:
         shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(str(i)), win)
         shortcut.activated.connect(lambda i=i: apply_palette(i))
+
+    def toggle_crazy_mode() -> None:
+        """Toggle crazy mode where sprites randomly change color."""
+
+        nonlocal crazy_mode, pending_palettes
+        finish_color_transition()
+        pending_palettes = []
+        crazy_mode = not crazy_mode
+        if crazy_mode:
+            win.setBackground(PALETTES[4]["background"])
+            for i in range(sprite_count):
+                sprite_items[i].setImage(
+                    crazy_cache[i][random.randrange(len(crazy_colors))]
+                )
+                transition_items[i].setOpacity(0)
+        else:
+            win.setBackground(PALETTES[current_palette]["background"])
+            for i in range(sprite_count):
+                sprite_items[i].setImage(color_cache[current_palette][i])
+                transition_items[i].setOpacity(0)
+
+    crazy_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("Space"), win)
+    crazy_shortcut.activated.connect(toggle_crazy_mode)
 
     ring_radius = 450
     aspect_ratio = window_width / window_height
@@ -373,7 +409,7 @@ def run() -> int:
                 item_a.setScale(scale)
                 item_b.setScale(scale)
 
-        if color_transition_active:
+        if color_transition_active and not crazy_mode:
             color_transition_frame += current_speed
             alpha = color_transition_frame / color_transition_frames
             alpha = 0.5 - 0.5 * np.cos(np.pi * alpha)
@@ -385,6 +421,11 @@ def run() -> int:
             if color_transition_frame >= color_transition_frames:
                 finish_color_transition()
                 trigger_next_palette_transition()
+
+        if crazy_mode:
+            for i in range(sprite_count):
+                idx = random.randrange(len(crazy_colors))
+                sprite_items[i].setImage(crazy_cache[i][idx])
 
     timer = pg.QtCore.QTimer()
     timer.timeout.connect(update)
