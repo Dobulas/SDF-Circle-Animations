@@ -103,6 +103,8 @@ def run() -> int:
     import pyqtgraph as pg
     from pyqtgraph.Qt import QtGui, QtWidgets
 
+    pg.setConfigOptions(antialias=True, useOpenGL=True)
+
     window_width, window_height = 1920, 1080
     radii = [70, 50, 30]
     noise_scale = 0.02
@@ -158,13 +160,13 @@ def run() -> int:
     transition_items = []
     for i in range(sprite_count):
         base = pg.ImageItem(image=color_cache[1][i])
-        base.setOpts(axisOrder="row-major")
+        base.setOpts(axisOrder="row-major", smooth=True)
         base.setZValue(i * 2)
         plot.addItem(base)
         sprite_items.append(base)
 
         overlay = pg.ImageItem(image=color_cache[1][i])
-        overlay.setOpts(axisOrder="row-major")
+        overlay.setOpts(axisOrder="row-major", smooth=True)
         overlay.setOpacity(0)
         overlay.setZValue(i * 2 + 1)
         plot.addItem(overlay)
@@ -494,6 +496,9 @@ def render_headless_mp4(
 ) -> None:
     """Render the animation to an MP4 using ``ffmpeg``.
 
+    The video is encoded losslessly with full chroma resolution to
+    preserve gradients and colour fidelity.
+
     Parameters
     ----------
     duration:
@@ -643,8 +648,12 @@ def render_headless_mp4(
         "-an",
         "-vcodec",
         "libx264",
+        "-crf",
+        "0",
+        "-preset",
+        "veryslow",
         "-pix_fmt",
-        "yuv420p",
+        "yuv444p",
         output,
     ]
     with subprocess.Popen(cmd, stdin=subprocess.PIPE) as proc:
