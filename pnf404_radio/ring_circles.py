@@ -488,23 +488,23 @@ def run() -> int:
     return app.exec_()
 
 
-def render_headless_mp4(
+def render_headless_prores(
     duration: float = 5.0,
-    output: str = "ring_circles.mp4",
+    output: str = "ring_circles.mov",
     fps: int = 60,
     timeline: str | None = None,
 ) -> None:
-    """Render the animation to an MP4 using ``ffmpeg``.
+    """Render the animation to a 10-bit ProRes MOV using ``ffmpeg``.
 
-    The video is encoded losslessly with full chroma resolution to
-    preserve gradients and colour fidelity.
+    The video is encoded with full chroma resolution to preserve gradients and
+    colour fidelity.
 
     Parameters
     ----------
     duration:
         Length of the video in seconds.
     output:
-        Path to the output MP4 file.
+        Path to the output MOV file.
     fps:
         Frames per second for the generated video.
     timeline:
@@ -646,14 +646,12 @@ def render_headless_mp4(
         "-i",
         "-",
         "-an",
-        "-vcodec",
-        "libx264",
-        "-crf",
-        "0",
-        "-preset",
-        "veryslow",
+        "-c:v",
+        "prores_ks",
+        "-profile:v",
+        "4",
         "-pix_fmt",
-        "yuv444p",
+        "yuv444p10le",
         output,
     ]
     with subprocess.Popen(cmd, stdin=subprocess.PIPE) as proc:
