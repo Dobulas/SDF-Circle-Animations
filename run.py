@@ -23,13 +23,13 @@ def parse_duration(value: str) -> float:
 
 
 def main() -> None:
-    """Run the ring circles animation or render it to an MP4 file."""
+    """Run the ring circles animation or render it to a 10-bit ProRes MOV."""
 
     parser = argparse.ArgumentParser(description="PNF 404 Radio animations")
     parser.add_argument(
         "--render",
         action="store_true",
-        help="Render a headless MP4 instead of displaying the window.",
+        help="Render a headless 10-bit ProRes MOV instead of displaying the window.",
     )
     parser.add_argument(
         "--duration",
@@ -43,8 +43,8 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=str,
-        default="ring_circles.mp4",
-        help=("Filename for the rendered MP4 (only used with --render)."),
+        default="ring_circles.mov",
+        help=("Filename for the rendered MOV (only used with --render)."),
     )
     parser.add_argument(
         "--timeline",
@@ -57,7 +57,7 @@ def main() -> None:
     )
     args = parser.parse_args()
     if args.render:
-        ring_circles.render_headless_mp4(
+        ring_circles.render_headless_prores(
             duration=args.duration,
             output=args.output,
             timeline=args.timeline,
