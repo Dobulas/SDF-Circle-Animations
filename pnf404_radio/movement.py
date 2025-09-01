@@ -32,6 +32,8 @@ class MovementController:
         Half-width of the bounding rectangle for drift behaviour.
     boundary_y:
         Half-height of the bounding rectangle for drift behaviour.
+    scale:
+        Multiplier applied to movement radii; values below ``1.0`` shrink paths.
     start_delay:
         Seconds to hold the initial arrangement before motion begins.
     angular_speed:
@@ -44,6 +46,7 @@ class MovementController:
     ring_radius: float
     boundary_x: float
     boundary_y: float
+    scale: float = 1.0
     start_delay: float = 0.0
     angular_speed: float = 0.6
     rose_k: int = 4
@@ -56,10 +59,11 @@ class MovementController:
         """Initialise per-sprite state."""
 
         self.angles = np.linspace(0, 2 * np.pi, self.sprite_count, endpoint=False)
+        r = self.ring_radius * self.scale
         self.positions = np.stack(
             [
-                self.ring_radius * np.cos(self.angles),
-                self.ring_radius * np.sin(self.angles),
+                r * np.cos(self.angles),
+                r * np.sin(self.angles),
             ],
             axis=1,
         )
@@ -81,11 +85,11 @@ class MovementController:
         velocities = np.zeros_like(self.positions)
 
         if mode is MovementMode.CIRCLE:
-            r = self.ring_radius
+            r = self.ring_radius * self.scale
             positions[:, 0] = r * np.cos(self.angles)
             positions[:, 1] = r * np.sin(self.angles)
         elif mode is MovementMode.FIGURE_EIGHT:
-            r = self.ring_radius
+            r = self.ring_radius * self.scale
             positions[:, 0] = r * np.sin(self.angles)
             positions[:, 1] = r * np.sin(2 * self.angles)
         elif mode is MovementMode.DRIFT:
@@ -93,7 +97,7 @@ class MovementController:
             speed = 1  # doubled from 0.05 to increase drift speed
             velocities = np.random.uniform(-speed, speed, size=(self.sprite_count, 2))
         elif mode is MovementMode.ROSE:
-            r = self.ring_radius
+            r = self.ring_radius * self.scale
             k = self.rose_k
             positions[:, 0] = r * np.cos(k * self.angles) * np.cos(self.angles)
             positions[:, 1] = r * np.cos(k * self.angles) * np.sin(self.angles)
@@ -122,7 +126,7 @@ class MovementController:
 
         if self.t >= self.start_delay:
             self.angles += self.angular_speed * dt
-        r = self.ring_radius
+        r = self.ring_radius * self.scale
         self.positions[:, 0] = r * np.cos(self.angles)
         self.positions[:, 1] = r * np.sin(self.angles)
         return {}
@@ -132,7 +136,7 @@ class MovementController:
 
         if self.t >= self.start_delay:
             self.angles += self.angular_speed * dt
-        r = self.ring_radius
+        r = self.ring_radius * self.scale
         self.positions[:, 0] = r * np.sin(self.angles)
         self.positions[:, 1] = r * np.sin(2 * self.angles)
         return {}
@@ -146,7 +150,7 @@ class MovementController:
 
         if self.t >= self.start_delay:
             self.angles += (self.angular_speed / max(1, self.rose_k)) * dt
-        r = self.ring_radius
+        r = self.ring_radius * self.scale
         k = self.rose_k
         self.positions[:, 0] = r * np.cos(k * self.angles) * np.cos(self.angles)
         self.positions[:, 1] = r * np.cos(k * self.angles) * np.sin(self.angles)
