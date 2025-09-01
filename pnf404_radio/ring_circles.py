@@ -58,6 +58,8 @@ PALETTES: Dict[int, Dict[str, List[str]]] = {
     },
 }
 
+SIZE_SCALE = 0.7  # Scale factor for a 30% size reduction
+
 
 def parse_timeline(spec: str, fps: int) -> List[Tuple[int, str]]:
     """Parse a timeline specification into frame-scheduled commands.
@@ -106,7 +108,7 @@ def run() -> int:
     pg.setConfigOptions(antialias=True, useOpenGL=True)
 
     window_width, window_height = 1920, 1080
-    radii = [70, 50, 30]
+    radii = [int(r * SIZE_SCALE) for r in (70, 50, 30)]
     noise_scale = 0.02
     noise_intensity = 5
     sprite_count = 15
@@ -274,14 +276,14 @@ def run() -> int:
     crazy_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("Space"), win)
     crazy_shortcut.activated.connect(toggle_crazy_mode)
 
-    ring_radius = 450
+    ring_radius = 450 * SIZE_SCALE
     aspect_ratio = window_width / window_height
     # Determine border size while preserving the window's aspect ratio
     if window_width >= window_height:
-        border_half_height = window_height / 2 - margin
+        border_half_height = (window_height / 2 - margin) * SIZE_SCALE
         border_half_width = border_half_height * aspect_ratio
     else:
-        border_half_width = window_width / 2 - margin
+        border_half_width = (window_width / 2 - margin) * SIZE_SCALE
         border_half_height = border_half_width / aspect_ratio
 
     # Movement boundary is constrained inside the border to keep sprites visible
@@ -519,7 +521,7 @@ def render_headless_prores(
     total_frames = int(duration * fps)
 
     window_width, window_height = 1920, 1080
-    radii = [70, 50, 30]
+    radii = [int(r * SIZE_SCALE) for r in (70, 50, 30)]
     noise_scale = 0.02
     noise_intensity = 5
     sprite_count = 15
@@ -527,13 +529,13 @@ def render_headless_prores(
     max_radius = max(radii)
     sprite_size = int(2 * max_radius + margin)
 
-    ring_radius = 450
+    ring_radius = 450 * SIZE_SCALE
     aspect_ratio = window_width / window_height
     if window_width >= window_height:
-        border_half_height = window_height / 2 - margin
+        border_half_height = (window_height / 2 - margin) * SIZE_SCALE
         border_half_width = border_half_height * aspect_ratio
     else:
-        border_half_width = window_width / 2 - margin
+        border_half_width = (window_width / 2 - margin) * SIZE_SCALE
         border_half_height = border_half_width / aspect_ratio
 
     boundary_x = border_half_width - max_radius
