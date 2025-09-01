@@ -3,3 +3,5 @@ matplotlib
 pyqtgraph
 PyQt5
 ffmpeg
+black
+flake8

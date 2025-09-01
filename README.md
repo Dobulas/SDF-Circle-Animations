@@ -1,10 +1,10 @@
 # PNF 404 Radio Animations
 
-This project contains experimental visual animations for **PNF 404 Radio: The Walkman Has Landed**. Animations are implemented with [PyQtGraph](https://www.pyqtgraph.org/) and can be chained together to create visuals for audio mixes.
+Experimental visual animations for **PNF 404 Radio: The Walkman Has Landed**. Animations are implemented with [PyQtGraph](https://www.pyqtgraph.org/) and Matplotlib and can be chained to visuals for audio mixes.
 
-## Requirements
+## Installation
 
-Install dependencies with pip:
+Python 3.10+ is required. Install dependencies:
 
 ```bash
 pip install -r requirements.txt
@@ -12,32 +12,52 @@ pip install -r requirements.txt
 
 ## Usage
 
-Run the ring circle animation:
+Launch the interactive ring circles animation:
 
 ```bash
 python run.py
 ```
 
-A window will open displaying rotating circles with layered noise. This serves as a starting point for creating additional animations.
-You can switch between movement modes while the window is active:
+The window shows rotating circles with layered noise. Keyboard controls:
 
-* **C** - circular motion
-* **F** - figure-eight paths
-* **R** - faster drifting within the boundary
-* **P** - rose-curve paths with configurable petal count
-* **Up / Down arrows** - increase or decrease animation speed (1×, 2×, 3×)
-* **Space** - toggle crazy mode with a gray backdrop and rapidly changing colors
+- **C** – circular motion
+- **F** – figure-eight paths
+- **R** – faster drifting within the boundary
+- **P** – rose-curve paths with a configurable petal count
+- **Up / Down arrows** – increase or decrease animation speed (1×, 2×, 3×)
+- **Space** – toggle crazy mode with a gray backdrop and rapidly changing colors
 
-To render a 10-bit ProRes MOV, use the ``--render`` flag. You can optionally
-provide a comma-separated timeline of timestamped commands that change palette,
-movement, or speed while rendering. The duration accepts either seconds or
-``MM:SS`` notation:
+### Rendering
+
+To render a 10-bit ProRes MOV instead of displaying a window:
 
 ```bash
 python run.py --render --duration 0:10 --output demo.mov --timeline "0:00 2R, 1:47 3, 1:59 F"
 ```
 
-Each timeline entry uses ``MM:SS`` followed by commands. Palette numbers ``1-4``
-switch colour schemes, letters ``R``, ``C``, ``F`` and ``P`` change movement
-modes, and ``>``/``<`` simulate up/down arrow presses to alter speed.
+The optional timeline uses `MM:SS` followed by commands. Palette numbers `1-4` switch colour schemes, letters `R`, `C`, `F` and `P` change movement modes, and `>`/`<` simulate up/down arrow presses to alter speed.
 
+## Project Structure
+
+- `run.py` – command-line entry point for running or rendering animations.
+- `pnf404_radio/` – package containing animation logic.
+  - `movement.py` – movement modes and controller.
+  - `ring_circles.py` – example ring-circles animation.
+  - `utils.py` – helper functions for noise and sprite creation.
+
+## Development
+
+Formatting uses [black](https://black.readthedocs.io/en/stable/) and linting uses [flake8](https://flake8.pycqa.org/). Run:
+
+```bash
+black .
+flake8
+```
+
+Verify changes manually with:
+
+```bash
+python run.py
+```
+
+New animations should live in `pnf404_radio` and be callable from `run.py`.
