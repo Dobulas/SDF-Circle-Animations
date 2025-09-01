@@ -277,14 +277,9 @@ def run() -> int:
     crazy_shortcut.activated.connect(toggle_crazy_mode)
 
     ring_radius = 450
-    aspect_ratio = window_width / window_height
-    # Determine border size while preserving the window's aspect ratio
-    if window_width >= window_height:
-        border_half_height = (window_height / 2 - margin) * SIZE_SCALE
-        border_half_width = border_half_height * aspect_ratio
-    else:
-        border_half_width = (window_width / 2 - margin) * SIZE_SCALE
-        border_half_height = border_half_width / aspect_ratio
+    # Determine border size using the full window dimensions minus a margin.
+    border_half_width = window_width / 2 - margin
+    border_half_height = window_height / 2 - margin
 
     # Movement boundary is constrained inside the border to keep sprites visible
     boundary_x = border_half_width - max_radius
@@ -531,13 +526,8 @@ def render_headless_prores(
     sprite_size = int(2 * max_radius + margin)
 
     ring_radius = 450
-    aspect_ratio = window_width / window_height
-    if window_width >= window_height:
-        border_half_height = (window_height / 2 - margin) * SIZE_SCALE
-        border_half_width = border_half_height * aspect_ratio
-    else:
-        border_half_width = (window_width / 2 - margin) * SIZE_SCALE
-        border_half_height = border_half_width / aspect_ratio
+    border_half_width = window_width / 2 - margin
+    border_half_height = window_height / 2 - margin
 
     boundary_x = border_half_width - max_radius
     boundary_y = border_half_height - max_radius
