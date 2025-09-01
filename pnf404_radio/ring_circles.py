@@ -276,7 +276,7 @@ def run() -> int:
     crazy_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("Space"), win)
     crazy_shortcut.activated.connect(toggle_crazy_mode)
 
-    ring_radius = 450 * SIZE_SCALE
+    ring_radius = 450
     aspect_ratio = window_width / window_height
     # Determine border size while preserving the window's aspect ratio
     if window_width >= window_height:
@@ -305,6 +305,7 @@ def run() -> int:
         ring_radius,
         boundary_x,
         boundary_y,
+        scale=SIZE_SCALE,
         start_delay=1.0,
         rose_k=5,
     )
@@ -529,7 +530,7 @@ def render_headless_prores(
     max_radius = max(radii)
     sprite_size = int(2 * max_radius + margin)
 
-    ring_radius = 450 * SIZE_SCALE
+    ring_radius = 450
     aspect_ratio = window_width / window_height
     if window_width >= window_height:
         border_half_height = (window_height / 2 - margin) * SIZE_SCALE
@@ -546,6 +547,7 @@ def render_headless_prores(
         ring_radius=ring_radius,
         boundary_x=boundary_x,
         boundary_y=boundary_y,
+        scale=SIZE_SCALE,
         start_delay=1.0,
         rose_k=5,
     )
